@@ -14,6 +14,7 @@ export default defineCachedEventHandler<Promise<JsrPackageInfo>>(
     if (!pkgPath) {
       throw createError({ statusCode: 400, message: 'Package name is required' })
     }
+    assertValidPackageName(pkgPath)
 
     return await fetchJsrPackageInfo(pkgPath)
   },

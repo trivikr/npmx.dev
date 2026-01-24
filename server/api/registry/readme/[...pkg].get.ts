@@ -58,6 +58,7 @@ export default defineCachedEventHandler(
     if (!packageName) {
       throw createError({ statusCode: 400, message: 'Package name is required' })
     }
+    assertValidPackageName(packageName)
 
     try {
       const packageData = await fetchNpmPackage(packageName)

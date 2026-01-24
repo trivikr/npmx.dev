@@ -2,6 +2,7 @@
 import { joinURL } from 'ufo'
 import type { PackumentVersion, NpmVersionDist } from '#shared/types'
 import type { JsrPackageInfo } from '#shared/types/jsr'
+import { assertValidPackageName } from '#shared/utils/npm'
 
 definePageMeta({
   name: 'package',
@@ -36,6 +37,10 @@ const parsedRoute = computed(() => {
 
 const packageName = computed(() => parsedRoute.value.packageName)
 const requestedVersion = computed(() => parsedRoute.value.requestedVersion)
+
+if (import.meta.server) {
+  assertValidPackageName(packageName.value)
+}
 
 // Extract org name from scoped package (e.g., "@nuxt/kit" -> "nuxt")
 const orgName = computed(() => {

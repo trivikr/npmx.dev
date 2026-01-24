@@ -27,6 +27,7 @@ export default defineCachedEventHandler(
     if (!packageName || !version) {
       throw createError({ statusCode: 400, message: 'Package name and version are required' })
     }
+    assertValidPackageName(packageName)
 
     try {
       const jsDelivrData = await fetchFileTree(packageName, version)

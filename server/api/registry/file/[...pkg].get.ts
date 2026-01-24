@@ -113,6 +113,7 @@ export default defineCachedEventHandler(
         message: 'Package name, version, and file path are required',
       })
     }
+    assertValidPackageName(packageName)
 
     try {
       const content = await fetchFileContent(packageName, version, filePath)

@@ -6,6 +6,7 @@ export default defineCachedEventHandler(
     }
 
     const packageName = pkg.replace(/\//g, '/')
+    assertValidPackageName(packageName)
 
     try {
       return await fetchNpmPackage(packageName)

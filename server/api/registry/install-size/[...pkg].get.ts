@@ -37,6 +37,7 @@ export default defineCachedEventHandler(
     if (!packageName) {
       throw createError({ statusCode: 400, message: 'Package name is required' })
     }
+    assertValidPackageName(packageName)
 
     // If no version specified, resolve to latest
     let version = requestedVersion
