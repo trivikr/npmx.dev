@@ -127,7 +127,7 @@
       "no_reason": "कोई कारण प्रदान नहीं किया गया"
     },
     "replacement": {
-      "title": "आपको इस डिपेंडेंसी की आवश्यकता नहीं हो सकती।",
+      "title": "आपको इस निर्भरता की आवश्यकता नहीं हो सकती।",
       "native": "इसे {replacement} से बदला जा सकता है, जो Node {nodeVersion} से उपलब्ध है।",
       "simple": "{community} ने इस पैकेज को निरर्थक के रूप में फ़्लैग किया है, सलाह के साथ: {replacement}।",
       "documented": "{community} ने इस पैकेज को अधिक प्रदर्शनकारी विकल्पों के रूप में फ़्लैग किया है।",
@@ -138,16 +138,16 @@
     },
     "stats": {
       "license": "अनुज्ञप्ति",
-      "deps": "डिपेंडेंसी",
+      "deps": "निर्भरता",
       "install_size": "इंस्टॉल साइज़",
       "vulns": "कमजोरियाँ",
       "updated": "अद्यतन किया गया",
       "skills": "स्किल्स",
-      "view_dependency_graph": "डिपेंडेंसी ग्राफ़ देखें",
-      "inspect_dependency_tree": "डिपेंडेंसी ट्री का निरीक्षण करें",
+      "view_dependency_graph": "निर्भरता ग्राफ़ देखें",
+      "inspect_dependency_tree": "निर्भरता ट्री का निरीक्षण करें",
       "size_tooltip": {
         "unpacked": "{size} अनपैक्ड साइज़ (यह पैकेज)",
-        "total": "{size} कुल अनपैक्ड साइज़ (linux-x64 के लिए सभी {count} डिपेंडेंसी सहित)"
+        "total": "{size} कुल अनपैक्ड साइज़ (linux-x64 के लिए सभी {count} निर्भरता सहित)"
       }
     },
     "skills": {
@@ -225,9 +225,9 @@
       "view_all": "{count} संस्करण देखें | सभी {count} संस्करण देखें"
     },
     "dependencies": {
-      "title": "डिपेंडेंसी ({count})",
-      "list_label": "पैकेज डिपेंडेंसी",
-      "show_all": "{count} dep दिखाएं | सभी {count} deps दिखाएं",
+      "title": "निर्भरताएँ ({count})",
+      "list_label": "पैकेज निर्भरताएँ",
+      "show_all": "{count} निर्भरता दिखाएं | सभी {count} निर्भरताएँ दिखाएं",
       "optional": "वैकल्पिक",
       "view_vulnerabilities": "कमजोरियाँ देखें",
       "outdated_major": "{count} मेजर संस्करण पीछे (नवीनतम: {latest}) | {count} मेजर संस्करण पीछे (नवीनतम: {latest})",
@@ -235,14 +235,14 @@
       "outdated_patch": "पैच अद्यतन उपलब्ध (नवीनतम: {latest})"
     },
     "peer_dependencies": {
-      "title": "पीयर डिपेंडेंसी ({count})",
-      "list_label": "पैकेज पीयर डिपेंडेंसी",
-      "show_all": "{count} पीयर dep दिखाएं | सभी {count} पीयर deps दिखाएं"
+      "title": "पीयर निर्भरताएँ ({count})",
+      "list_label": "पैकेज पीयर निर्भरताएँ",
+      "show_all": "{count} पीयर निर्भरता दिखाएं | सभी {count} पीयर निर्भरताएँ दिखाएं"
     },
     "optional_dependencies": {
-      "title": "वैकल्पिक डिपेंडेंसी ({count})",
-      "list_label": "पैकेज वैकल्पिक डिपेंडेंसी",
-      "show_all": "{count} वैकल्पिक dep दिखाएं | सभी {count} वैकल्पिक deps दिखाएं"
+      "title": "वैकल्पिक निर्भरताएँ ({count})",
+      "list_label": "पैकेज वैकल्पिक निर्भरता",
+      "show_all": "{count} वैकल्पिक निर्भरता दिखाएं | सभी {count} वैकल्पिक निर्भरताएँ दिखाएं"
     },
     "maintainers": {
       "title": "अनुरक्षक",
@@ -304,9 +304,9 @@
       "no_description": "कोई विवरण उपलब्ध नहीं",
       "found": "{count} कमजोरी मिली | {count} कमजोरियाँ मिलीं",
       "deps_found": "{count} कमजोरी मिली | {count} कमजोरियाँ मिलीं",
-      "deps_affected": "{count} डिपेंडेंसी प्रभावित | {count} डिपेंडेंसी प्रभावित",
+      "deps_affected": "{count} निर्भरता प्रभावित | {count} निर्भरता प्रभावित",
       "tree_found": "{packages}/{total} पैकेज में {vulns} कमजोरी | {packages}/{total} पैकेज में {vulns} कमजोरियाँ",
-      "scanning_tree": "डिपेंडेंसी ट्री स्कैन कर रहे हैं...",
+      "scanning_tree": "निर्भरता ट्री स्कैन कर रहे हैं...",
       "show_all_packages": "सभी {count} प्रभावित पैकेज दिखाएं",
       "no_summary": "कोई सारांश नहीं",
       "view_details": "कमजोरी विवरण देखें",
@@ -317,8 +317,8 @@
       "scan_failed": "कमजोरियों के लिए स्कैन नहीं किया जा सका",
       "depth": {
         "root": "यह पैकेज",
-        "direct": "प्रत्यक्ष डिपेंडेंसी",
-        "transitive": "ट्रांजिटिव डिपेंडेंसी (अप्रत्यक्ष)"
+        "direct": "प्रत्यक्ष निर्भरता",
+        "transitive": "ट्रांजिटिव निर्भरता (अप्रत्यक्ष)"
       },
       "severity": {
         "critical": "गंभीर",
@@ -329,7 +329,7 @@
     },
     "deprecated": {
       "label": "डेप्रीकेटेड",
-      "tree_found": "{count} डेप्रीकेटेड डिपेंडेंसी | {count} डेप्रीकेटेड डिपेंडेंसी",
+      "tree_found": "{count} डेप्रीकेटेड निर्भरता | {count} डेप्रीकेटेड निर्भरता",
       "show_all": "{count} डेप्रीकेटेड पैकेज दिखाएं | सभी {count} डेप्रीकेटेड पैकेज दिखाएं"
     },
     "access": {
@@ -364,14 +364,14 @@
       "license": "अनुज्ञप्ति",
       "weekly": "साप्ताहिक",
       "size": "साइज़",
-      "deps": "डिपेंडेंसी",
+      "deps": "निर्भरताएँ",
       "updated": "अद्यतन किया गया",
       "get_started": "शुरू करें",
       "readme": "रीडमी",
       "maintainers": "अनुरक्षक",
       "keywords": "कीवर्ड्स",
       "versions": "संस्करण",
-      "dependencies": "डिपेंडेंसी"
+      "dependencies": "निर्भरताएँ"
     },
     "sort": {
       "downloads": "सबसे अधिक डाउनलोड किए गए",
