@@ -113,50 +113,6 @@
     },
     "scroll_to_top": "वर स्क्रोल करा"
   },
-  "header": {
-    "logo": "होमपेजवर परत जा"
-  },
-  "about": {
-    "title": "बद्दल",
-    "subtitle": "npmx बद्दल",
-    "description": "npmx हा npm नोंदणीसाठी एक आधुनिक, वेगवान आणि अनुकूल ब्राउझर आहे.",
-    "features": {
-      "title": "वैशिष्ट्ये",
-      "fast_search": "वेगवान शोध",
-      "fast_search_description": "पॅकेजेस झटपट शोधा",
-      "modern_ui": "आधुनिक UI",
-      "modern_ui_description": "स्वच्छ आणि सहजज्ञान इंटरफेस",
-      "package_details": "पॅकेज तपशील",
-      "package_details_description": "संपूर्ण पॅकेज माहिती आणि मेटाडेटा",
-      "dependency_visualization": "निर्भरता व्हिज्युअलायझेशन",
-      "dependency_visualization_description": "पॅकेज निर्भरता पहा आणि एक्सप्लोर करा"
-    },
-    "open_source": {
-      "title": "ओपन सोर्स",
-      "description": "npmx हा ओपन सोर्स आहे आणि GitHub वर उपलब्ध आहे.",
-      "view_on_github": "GitHub वर पहा"
-    }
-  },
-  "org": {
-    "title": "{name}",
-    "packages": "पॅकेजेस",
-    "members": "सदस्य",
-    "description": "वर्णन",
-    "no_description": "कोणतेही वर्णन उपलब्ध नाही.",
-    "no_packages": "या संस्थेकडून कोणतीही सार्वजनिक पॅकेजेस उपलब्ध नाहीत.",
-    "homepage": "होमपेज",
-    "view_on_npm": "npm वर पहा",
-    "view_on_github": "GitHub वर पहा"
-  },
-  "user": {
-    "title": "{username}",
-    "packages": "पॅकेजेस",
-    "no_packages": "या वापरकर्त्याकडून कोणतीही सार्वजनिक पॅकेजेस उपलब्ध नाहीत.",
-    "github": "GitHub",
-    "twitter": "Twitter",
-    "website": "वेबसाइट",
-    "view_on_npm": "npm वर पहा"
-  },
   "package": {
     "not_found": "पॅकेज आढळले नाही",
     "not_found_message": "पॅकेज आढळले नाही.",
@@ -242,219 +198,122 @@
     },
     "run": {
       "title": "चालवा",
-      "copy_command": "चालवण्याचा आदेश कॉपी करा",
       "locally": "स्थानिकरित्या चालवा"
     },
-    "readme": "README",
+    "readme": {},
     "keywords_title": "कीवर्ड",
     "compatibility": "सुसंगतता",
-    "card": "पॅकेज कार्ड",
-    "versions": "आवृत्त्या",
-    "dependencies": "निर्भरता",
-    "peer_dependencies": "समवयस्क निर्भरता",
-    "optional_dependencies": "पर्यायी निर्भरता",
-    "dev_dependencies": "विकास निर्भरता",
-    "bundled_dependencies": "बंडल केलेली निर्भरता",
-    "dependents": "अवलंबित",
-    "code_tab": {
-      "title": "कोड",
-      "explore": "एक्सप्लोर करा"
+    "card": {},
+    "versions": {},
+    "dependencies": {},
+    "peer_dependencies": {},
+    "optional_dependencies": {},
+    "maintainers": {},
+    "downloads": {},
+    "install_scripts": {},
+    "playgrounds": {},
+    "metrics": {},
+    "license": {},
+    "vulnerabilities": {
+      "depth": {},
+      "severity": {}
     },
-    "provenance_tab": {
-      "title": "उत्पत्ती",
-      "verified": "सत्यापित",
-      "not_available": "उत्पत्ती माहिती उपलब्ध नाही"
+    "deprecated": {},
+    "access": {
+      "permission": {}
     },
-    "title": "{name}",
-    "overview": "विहंगावलोकन",
-    "code": "कोड",
-    "provenance": "उत्पत्ती",
-    "install": "स्थापित करा",
-    "homepage": "होमपेज",
-    "repository": "रिपॉझिटरी",
-    "npm": "npm वर पहा",
-    "author": "लेखक",
-    "authors": "लेखक",
-    "maintainers": "देखभालकर्ते",
-    "publisher": "प्रकाशक",
-    "published": "प्रकाशित केले",
-    "license": "परवाना",
-    "keywords": "कीवर्ड",
-    "no_keywords": "कोणतेही कीवर्ड नाहीत",
-    "weekly_downloads": "साप्ताहिक डाउनलोड",
-    "version": "आवृत्ती",
-    "latest": "नवीनतम",
-    "next": "पुढील",
-    "beta": "बीटा",
-    "alpha": "अल्फा",
-    "rc": "रिलीझ उमेदवार",
-    "deprecated": "नापसंत",
-    "deprecated_message": "हे पॅकेज नापसंत केले गेले आहे",
-    "deprecated_alternative": "त्याऐवजी {name} वापरा",
-    "version_count": "आवृत्त्या",
-    "unpublished": "अप्रकाशित",
-    "see_all_versions": "सर्व {count} आवृत्त्या पहा",
-    "no_readme": "कोणतेही README उपलब्ध नाही",
-    "install_command": "स्थापना आदेश",
-    "copy_install_command": "स्थापना आदेश कॉपी करा",
-    "copied": "कॉपी केले!",
-    "copy": "कॉपी करा",
-    "loading": "लोड करत आहे...",
-    "dependencies_count": "निर्भरता | निर्भरता | {count} निर्भरता",
-    "no_dependencies": "कोणतीही निर्भरता नाही",
-    "dependents_count": "{count} अवलंबित",
-    "no_dependents": "कोणतेही अवलंबित नाहीत",
-    "types": "प्रकार",
-    "included": "समाविष्ट",
-    "dt_package": "@types/{name}",
-    "bundle_size": "बंडल आकार",
-    "minified": "लघुकृत",
-    "gzipped": "gzip केले",
-    "package_size": "पॅकेज आकार",
-    "unpacked_size": "अनपॅक केलेला आकार",
-    "file_count": "{count} फाइल्स",
-    "last_publish": "शेवटचे प्रकाशन",
-    "collaborators": "सहकारी",
-    "quality": "गुणवत्ता",
-    "popularity": "लोकप्रियता",
-    "maintenance": "देखभाल",
-    "score": "गुण",
-    "final_score": "अंतिम गुण",
-    "downloads_last_week": "गेल्या आठवड्यात डाउनलोड",
-    "downloads_last_month": "गेल्या महिन्यात डाउनलोड",
-    "downloads_last_year": "गेल्या वर्षात डाउनलोड",
-    "github_stars": "GitHub तारे",
-    "github_forks": "GitHub फोर्क्स",
-    "github_issues": "GitHub समस्या",
-    "github_contributors": "GitHub योगदानकर्ते",
-    "view_on_npm": "npm वर पहा",
-    "view_on_github": "GitHub वर पहा",
-    "view_on_bundlephobia": "BundlePhobia वर पहा",
-    "view_homepage": "होमपेज पहा",
-    "view_repository": "रिपॉझिटरी पहा",
-    "open_in": "{name} मध्ये उघडा",
-    "open_in_new_tab": "नवीन टॅबमध्ये उघडा",
-    "copy_link": "दुवा कॉपी करा",
-    "share": "सामायिक करा",
-    "related_packages": "संबंधित पॅकेजेस",
-    "similar_packages": "समान पॅकेजेस",
-    "alternatives": "पर्याय",
-    "security": "सुरक्षा",
-    "security_vulnerabilities": "सुरक्षा असुरक्षितता",
-    "no_vulnerabilities": "कोणत्याही ज्ञात असुरक्षितता नाहीत",
-    "vulnerabilities": "{count} असुरक्षितता",
-    "typescript_support": "TypeScript समर्थन",
-    "has_types": "प्रकार समाविष्ट आहेत",
-    "no_types": "कोणतेही प्रकार नाहीत"
-  },
-  "code": {
-    "title": "कोड",
-    "explore": "एक्सप्लोर करा",
-    "files": "फाइल्स",
-    "file": "फाइल",
-    "folder": "फोल्डर",
-    "no_files": "कोणत्याही फाइल्स उपलब्ध नाहीत",
-    "loading": "लोड करत आहे...",
-    "lines": "{count} ओळी",
-    "size": "आकार",
-    "view_file": "फाइल पहा",
-    "download_file": "फाइल डाउनलोड करा",
-    "copy_contents": "सामग्री कॉपी करा",
-    "raw": "कच्चा"
-  },
-  "compare": {
-    "title": "पॅकेजेसची तुलना करा",
-    "description": "npm नोंदणीतून एकाधिक पॅकेजेस साथीसाथ तुलना करा",
-    "add_package": "पॅकेज जोडा",
-    "package_name": "पॅकेज नाव",
-    "remove": "काढा",
-    "no_packages": "तुलना करण्यासाठी पॅकेजेस जोडा",
-    "downloads": "डाउनलोड",
-    "size": "आकार",
-    "last_publish": "शेवटचे प्रकाशन",
-    "license": "परवाना",
-    "dependencies": "निर्भरता",
-    "github_stars": "GitHub तारे",
-    "issues": "समस्या",
-    "weekly_downloads": "साप्ताहिक डाउनलोड",
-    "package_1": "पॅकेज 1",
-    "package_2": "पॅकेज 2",
-    "package_3": "पॅकेज 3",
-    "clear_all": "सर्व साफ करा"
-  },
-  "operations": {
-    "cancel": "रद्द करा",
-    "close": "बंद करा",
-    "copy": "कॉपी करा",
-    "delete": "हटवा",
-    "edit": "संपादित करा",
-    "save": "जतन करा",
-    "search": "शोध",
-    "filter": "फिल्टर",
-    "sort": "क्रमवारी लावा",
-    "reset": "रीसेट करा",
-    "clear": "साफ करा",
-    "apply": "लागू करा",
-    "confirm": "पुष्टी करा"
-  },
-  "filters": {
-    "sort_by": "यानुसार क्रमवारी लावा",
-    "filter": "फिल्टर",
-    "clear_filters": "फिल्टर साफ करा",
-    "relevance": "प्रासंगिकता",
-    "downloads": "डाउनलोड",
-    "stars": "तारे",
-    "updated": "अद्यतनित",
-    "created": "तयार केले",
-    "quality": "गुणवत्ता",
-    "popularity": "लोकप्रियता",
-    "maintenance": "देखभाल",
-    "optimal": "इष्टतम",
-    "filter_by": "यानुसार फिल्टर करा",
-    "show_all": "सर्व दर्शवा",
-    "show_less": "कमी दर्शवा",
-    "show_more": "अधिक दर्शवा"
-  },
-  "auth": {
-    "sign_in": "साइन इन करा",
-    "sign_out": "साइन आउट करा",
-    "signed_in_as": "{username} म्हणून साइन इन केले",
-    "sign_in_with": "{provider} सह साइन इन करा",
-    "sign_in_with_github": "GitHub सह साइन इन करा",
-    "sign_in_with_npm": "npm सह साइन इन करा"
-  },
-  "account_menu": {
-    "settings": "सेटिंग्ज",
-    "sign_out": "साइन आउट करा",
-    "profile": "प्रोफाइल",
-    "account": "खाते"
-  },
-  "badges": {
-    "npm_version": "npm आवृत्ती",
-    "downloads": "डाउनलोड",
-    "license": "परवाना",
-    "bundle_size": "बंडल आकार",
-    "types": "प्रकार",
-    "stars": "तारे",
-    "issues": "समस्या",
-    "last_publish": "शेवटचे प्रकाशन"
-  },
-  "claim": {
-    "title": "\"{name}\" दावा करा",
-    "description": "npm वर हे पॅकेज नाव दावा करा",
-    "claim_button": "npm वर दावा करा",
-    "not_signed_in": "दावा करण्यासाठी तुम्हाला npm वर साइन इन करणे आवश्यक आहे."
+    "list": {},
+    "skeleton": {},
+    "sort": {}
   },
   "connector": {
-    "title": "npmx कनेक्टर",
-    "description": "तुमच्या ब्राउझरमध्ये npm पॅकेज लिंक्स npmx वर पुनर्निर्देशित करा",
-    "install": "स्थापित करा",
-    "features": {
-      "redirect": "npm लिंक्स npmx वर पुनर्निर्देशित करा",
-      "fast": "वेगवान आणि हलके",
-      "privacy": "कोणताही डेटा संग्रहित केला जात नाही"
+    "status": {},
+    "modal": {}
+  },
+  "operations": {
+    "queue": {}
+  },
+  "org": {
+    "teams": {},
+    "members": {
+      "role": {}
     },
-    "browser_extension": "ब्राउझर विस्तार",
-    "install_extension": "विस्तार स्थापित करा"
+    "page": {}
+  },
+  "user": {
+    "combobox": {},
+    "page": {},
+    "orgs_page": {}
+  },
+  "claim": {
+    "modal": {}
+  },
+  "code": {
+    "no_files": "कोणत्याही फाइल्स उपलब्ध नाहीत",
+    "lines": "{count} ओळी",
+    "raw": "कच्चा",
+    "table": {},
+    "markdown_view_mode": {}
+  },
+  "badges": {
+    "provenance": {},
+    "jsr": {}
+  },
+  "filters": {
+    "chips": {},
+    "download_range": {},
+    "updated": {},
+    "security_options": {},
+    "sort": {},
+    "columns": {},
+    "view_mode": {},
+    "pagination": {},
+    "count": {},
+    "table": {}
+  },
+  "about": {
+    "title": "बद्दल",
+    "what_we_are": {},
+    "what_we_are_not": {
+      "words": {}
+    },
+    "contributors": {},
+    "get_involved": {
+      "contribute": {},
+      "community": {},
+      "follow": {}
+    }
+  },
+  "account_menu": {
+    "account": "खाते"
+  },
+  "auth": {
+    "modal": {}
+  },
+  "header": {
+    "packages_dropdown": {},
+    "orgs_dropdown": {}
+  },
+  "compare": {
+    "packages": {},
+    "selector": {},
+    "facets": {
+      "categories": {},
+      "items": {
+        "packageSize": {},
+        "installSize": {},
+        "dependencies": {},
+        "totalDependencies": {},
+        "downloads": {},
+        "lastUpdated": {},
+        "deprecated": {},
+        "engines": {},
+        "types": {},
+        "moduleFormat": {},
+        "license": {},
+        "vulnerabilities": {}
+      },
+      "values": {}
+    }
   }
 }
