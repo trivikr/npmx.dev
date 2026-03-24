@@ -51,6 +51,7 @@ const {
   provider: searchProvider,
 } = useGlobalSearch()
 const query = computed(() => searchQuery.value)
+const normalizedQuery = computed(() => query.value.trim().toLowerCase())
 
 // Track if page just loaded (for hiding "Searching..." during view transition)
 const hasInteracted = shallowRef(false)
@@ -99,13 +100,12 @@ const visibleResults = computed(() => {
     objects = objects.filter(r => !isPlatformSpecificPackage(r.package.name))
   }
 
-  const q = query.value.trim().toLowerCase()
-  if (!q) {
+  if (!normalizedQuery.value) {
     return objects === raw.objects ? raw : { ...raw, objects }
   }
 
   // Find exact match index
-  const exactIdx = objects.findIndex(r => r.package.name.toLowerCase() === q)
+  const exactIdx = objects.findIndex(r => r.package.name.toLowerCase() === normalizedQuery.value)
   if (exactIdx <= 0) {
     return objects === raw.objects ? raw : { ...raw, objects }
   }
@@ -234,7 +234,7 @@ const displayResults = computed(() => {
         diff = (a.downloads?.weekly ?? 0) - (b.downloads?.weekly ?? 0)
         break
       case 'updated':
-        diff = new Date(a.package.date).getTime() - new Date(b.package.date).getTime()
+        diff = Date.parse(a.package.date) - Date.parse(b.package.date)
         break
       case 'name':
         diff = a.package.name.localeCompare(b.package.name)
@@ -369,9 +369,10 @@ const claimPackageModalRef = useTemplateRef('claimPackageModalRef')
 
 /** Check if there's an exact package match in results */
 const hasExactPackageMatch = computed(() => {
-  const q = query.value.trim().toLowerCase()
-  if (!q || !visibleResults.value) return false
-  return visibleResults.value.objects.some(r => r.package.name.toLowerCase() === q)
+  if (!normalizedQuery.value || !visibleResults.value) return false
+  return visibleResults.value.objects.some(
+    result => result.package.name.toLowerCase() === normalizedQuery.value,
+  )
 })
 
 /** Check if query is an exact org match (e.g., @nuxt matches org nuxt) */
@@ -461,11 +462,6 @@ watch(displayResults, newResults => {
 
   // Navigate if first result matches the query that was entered
   const firstResult = newResults[0]
-  // eslint-disable-next-line no-console
-  console.log('[search] watcher fired', {
-    pending: pendingEnterQuery.value,
-    firstResult: firstResult?.package.name,
-  })
   if (firstResult?.package.name === pendingEnterQuery.value) {
     pendingEnterQuery.value = null
     navigateToPackage(firstResult.package.name)

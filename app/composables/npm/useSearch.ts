@@ -245,46 +245,61 @@ export function useSearch(
       }
     }
 
-    const currentCount = cache.value?.objects.length ?? 0
-    const total = cache.value?.total ?? Infinity
-
-    if (currentCount >= targetSize || currentCount >= total) {
-      return
-    }
+    if ((cache.value?.objects.length ?? 0) >= targetSize) return
 
     isLoadingMore.value = true
 
     try {
-      const from = currentCount
-      const size = Math.min(targetSize - currentCount, total - currentCount)
-
       const doSearch = provider === 'algolia' ? searchAlgolia : searchNpm
-      const response = await doSearch(q, { size, from })
+      while (true) {
+        const currentCount = cache.value?.objects.length ?? 0
+        const total = cache.value?.total ?? Infinity
 
-      if (cache.value && cache.value.query === q && cache.value.provider === provider) {
-        const existingNames = new Set(cache.value.objects.map(obj => obj.package.name))
-        const newObjects = response.objects.filter(obj => !existingNames.has(obj.package.name))
-        cache.value = {
-          query: q,
-          provider,
-          objects: [...cache.value.objects, ...newObjects],
-          total: response.total,
+        if (currentCount >= targetSize || currentCount >= total) {
+          break
         }
-      } else {
+
+        const from = currentCount
+        const size = Math.min(targetSize - currentCount, total - currentCount)
+        const response = await doSearch(q, { size, from })
+
+        if (q !== toValue(query) || provider !== toValue(searchProvider)) {
+          break
+        }
+
+        if (cache.value && cache.value.query === q && cache.value.provider === provider) {
+          const existingNames = new Set(cache.value.objects.map(obj => obj.package.name))
+          const newObjects = response.objects.filter(obj => !existingNames.has(obj.package.name))
+
+          if (newObjects.length === 0) {
+            cache.value = {
+              query: q,
+              provider,
+              objects: cache.value.objects,
+              total: response.total,
+            }
+            break
+          }
+
+          cache.value = {
+            query: q,
+            provider,
+            objects: [...cache.value.objects, ...newObjects],
+            total: response.total,
+          }
+          continue
+        }
+
         cache.value = {
           query: q,
           provider,
           objects: response.objects,
           total: response.total,
         }
-      }
 
-      if (
-        cache.value &&
-        cache.value.objects.length < targetSize &&
-        cache.value.objects.length < cache.value.total
-      ) {
-        await fetchMore(targetSize)
+        if (response.objects.length === 0) {
+          break
+        }
       }
     } finally {
       isLoadingMore.value = false

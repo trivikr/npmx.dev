@@ -131,12 +131,26 @@ interface UseStructuredFiltersOptions {
   initialSort?: SortOption
 }
 
+interface NormalizedTextFilter {
+  rawText: string
+  scope: SearchScope
+  lowerText: string
+  hasOperators: boolean
+  nameTerms: string[]
+  descriptionTerms: string[]
+  keywordTerms: string[]
+  remainingText: string
+}
+
 // Pure filter predicates (no closure dependencies)
-function matchesKeywords(pkg: NpmSearchResult, keywords: string[]): boolean {
-  if (keywords.length === 0) return true
+function matchesKeywords(pkg: NpmSearchResult, keywords: ReadonlySet<string>): boolean {
+  if (keywords.size === 0) return true
   const pkgKeywords = new Set((pkg.package.keywords ?? []).map(k => k.toLowerCase()))
   // AND logic: package must have ALL selected keywords (case-insensitive)
-  return keywords.every(k => pkgKeywords.has(k.toLowerCase()))
+  for (const keyword of keywords) {
+    if (!pkgKeywords.has(keyword)) return false
+  }
+  return true
 }
 
 function matchesSecurity(pkg: NpmSearchResult, security: SecurityFilter): boolean {
@@ -145,6 +159,37 @@ function matchesSecurity(pkg: NpmSearchResult, security: SecurityFilter): boolea
   if (security === 'secure') return !hasWarnings
   if (security === 'warnings') return hasWarnings
   return true
+}
+
+function normalizeTextFilter(text: string, scope: SearchScope): NormalizedTextFilter {
+  const rawText = text.trim()
+  const lowerText = rawText.toLowerCase()
+
+  if (!rawText || scope !== 'all') {
+    return {
+      rawText,
+      scope,
+      lowerText,
+      hasOperators: false,
+      nameTerms: [],
+      descriptionTerms: [],
+      keywordTerms: [],
+      remainingText: '',
+    }
+  }
+
+  const parsed = parseSearchOperators(rawText)
+
+  return {
+    rawText,
+    scope,
+    lowerText,
+    hasOperators: hasSearchOperators(parsed),
+    nameTerms: parsed.name?.map(term => term.toLowerCase()) ?? [],
+    descriptionTerms: parsed.description?.map(term => term.toLowerCase()) ?? [],
+    keywordTerms: parsed.keywords?.map(term => term.toLowerCase()) ?? [],
+    remainingText: parsed.text?.toLowerCase() ?? '',
+  }
 }
 
 /**
@@ -207,47 +252,65 @@ export function useStructuredFilters(options: UseStructuredFiltersOptions) {
       .map(([keyword]) => keyword)
   })
 
+  const normalizedTextFilter = computed(() =>
+    normalizeTextFilter(filters.value.text, filters.value.searchScope),
+  )
+
+  const selectedKeywords = computed(
+    () => new Set(filters.value.keywords.map(keyword => keyword.toLowerCase())),
+  )
+
+  const selectedDownloadRange = computed(() =>
+    DOWNLOAD_RANGES.find(range => range.value === filters.value.downloadRange),
+  )
+
+  const updatedWithinCutoff = computed(() => {
+    const config = UPDATED_WITHIN_OPTIONS.find(option => option.value === filters.value.updatedWithin)
+    if (!config?.days) return null
+
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - config.days)
+    return cutoff.getTime()
+  })
+
   // Filter predicates
-  function matchesTextFilter(pkg: NpmSearchResult, text: string, scope: SearchScope): boolean {
-    if (!text) return true
+  function matchesTextFilter(pkg: NpmSearchResult, filter: NormalizedTextFilter): boolean {
+    if (!filter.rawText) return true
 
     const pkgName = pkg.package.name.toLowerCase()
     const pkgDescription = (pkg.package.description ?? '').toLowerCase()
     const pkgKeywords = (pkg.package.keywords ?? []).map(k => k.toLowerCase())
 
     // When scope is 'all', parse and handle operators
-    if (scope === 'all') {
-      const parsed = parseSearchOperators(text)
-
+    if (filter.scope === 'all') {
       // If operators are present, use structured matching
-      if (hasSearchOperators(parsed)) {
+      if (filter.hasOperators) {
         // All specified operators must match (AND logic between operator types)
         // Within each operator, any value can match (OR logic within operator)
 
-        if (parsed.name?.length) {
-          const nameMatches = parsed.name.some(n => pkgName.includes(n.toLowerCase()))
+        if (filter.nameTerms.length) {
+          const nameMatches = filter.nameTerms.some(term => pkgName.includes(term))
           if (!nameMatches) return false
         }
 
-        if (parsed.description?.length) {
-          const descMatches = parsed.description.some(d => pkgDescription.includes(d.toLowerCase()))
+        if (filter.descriptionTerms.length) {
+          const descMatches = filter.descriptionTerms.some(term => pkgDescription.includes(term))
           if (!descMatches) return false
         }
 
-        if (parsed.keywords?.length) {
-          const kwMatches = parsed.keywords.some(kw =>
-            pkgKeywords.some(pk => pk.includes(kw.toLowerCase())),
+        if (filter.keywordTerms.length) {
+          const kwMatches = filter.keywordTerms.some(term =>
+            pkgKeywords.some(keyword => keyword.includes(term)),
           )
           if (!kwMatches) return false
         }
 
         // If there's remaining text, it must match somewhere
-        if (parsed.text) {
-          const textLower = parsed.text.toLowerCase()
+        if (filter.remainingText) {
           const textMatches =
-            pkgName.includes(textLower) ||
-            pkgDescription.includes(textLower) ||
-            pkgKeywords.some(k => k.includes(textLower))
+            pkgName.includes(filter.remainingText) ||
+            pkgDescription.includes(filter.remainingText) ||
+            pkgKeywords.some(keyword => keyword.includes(filter.remainingText))
           if (!textMatches) return false
         }
 
@@ -255,57 +318,56 @@ export function useStructuredFilters(options: UseStructuredFiltersOptions) {
       }
 
       // No operators - fall through to standard 'all' search
-      const lower = text.toLowerCase()
       return (
-        pkgName.includes(lower) ||
-        pkgDescription.includes(lower) ||
-        pkgKeywords.some(k => k.includes(lower))
+        pkgName.includes(filter.lowerText) ||
+        pkgDescription.includes(filter.lowerText) ||
+        pkgKeywords.some(keyword => keyword.includes(filter.lowerText))
       )
     }
 
     // Non-'all' scopes - simple matching
-    const lower = text.toLowerCase()
-    switch (scope) {
+    switch (filter.scope) {
       case 'name':
-        return pkgName.includes(lower)
+        return pkgName.includes(filter.lowerText)
       case 'description':
-        return pkgDescription.includes(lower)
+        return pkgDescription.includes(filter.lowerText)
       case 'keywords':
-        return pkgKeywords.some(k => k.includes(lower))
+        return pkgKeywords.some(keyword => keyword.includes(filter.lowerText))
       default:
-        return pkgName.includes(lower)
+        return pkgName.includes(filter.lowerText)
     }
   }
 
-  function matchesDownloadRange(pkg: NpmSearchResult, range: DownloadRange): boolean {
-    if (range === 'any') return true
+  function matchesDownloadRange(
+    pkg: NpmSearchResult,
+    range: (typeof DOWNLOAD_RANGES)[number] | undefined,
+  ): boolean {
+    if (!range || range.value === 'any') return true
     const downloads = pkg.downloads?.weekly ?? 0
-    const config = DOWNLOAD_RANGES.find(r => r.value === range)
-    if (!config) return true
-    if (config.min !== undefined && downloads < config.min) return false
-    if (config.max !== undefined && downloads >= config.max) return false
+    if (range.min !== undefined && downloads < range.min) return false
+    if (range.max !== undefined && downloads >= range.max) return false
     return true
   }
 
-  function matchesUpdatedWithin(pkg: NpmSearchResult, within: UpdatedWithin): boolean {
-    if (within === 'any') return true
-    const config = UPDATED_WITHIN_OPTIONS.find(o => o.value === within)
-    if (!config?.days) return true
-
-    const updatedDate = new Date(pkg.package.date)
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - config.days)
-    return updatedDate >= cutoff
+  function matchesUpdatedWithin(pkg: NpmSearchResult, cutoffTime: number | null): boolean {
+    if (cutoffTime === null) return true
+    return Date.parse(pkg.package.date) >= cutoffTime
   }
 
   // Apply all filters
   const filteredPackages = computed(() => {
+    const textFilter = normalizedTextFilter.value
+    const keywords = selectedKeywords.value
+    const downloadRange = selectedDownloadRange.value
+    const cutoffTime = updatedWithinCutoff.value
+    const security = filters.value.security
+
     return packages.value.filter(pkg => {
-      if (!matchesTextFilter(pkg, filters.value.text, filters.value.searchScope)) return false
-      if (!matchesDownloadRange(pkg, filters.value.downloadRange)) return false
-      if (!matchesKeywords(pkg, filters.value.keywords)) return false
-      if (!matchesSecurity(pkg, filters.value.security)) return false
-      if (!matchesUpdatedWithin(pkg, filters.value.updatedWithin)) return false
+      if (!matchesTextFilter(pkg, textFilter)) return false
+      if (!matchesDownloadRange(pkg, downloadRange)) return false
+      if (!matchesKeywords(pkg, keywords)) return false
+      if (!matchesSecurity(pkg, security)) return false
+      if (!matchesUpdatedWithin(pkg, cutoffTime)) return false
       return true
     })
   })
@@ -327,7 +389,7 @@ export function useStructuredFilters(options: UseStructuredFiltersOptions) {
         diff = (a.downloads?.weekly ?? 0) - (b.downloads?.weekly ?? 0)
         break
       case 'updated':
-        diff = new Date(a.package.date).getTime() - new Date(b.package.date).getTime()
+        diff = Date.parse(a.package.date) - Date.parse(b.package.date)
         break
       case 'name':
         diff = a.package.name.localeCompare(b.package.name)
