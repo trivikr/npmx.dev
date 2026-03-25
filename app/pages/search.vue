@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { NpmSearchResult } from '#shared/types/npm-registry'
 import type { FilterChip, SortKey } from '#shared/types/preferences'
 import { parseSortOption, PROVIDER_SORT_KEYS } from '#shared/types/preferences'
 import { onKeyDown } from '@vueuse/core'
@@ -80,51 +81,71 @@ onMounted(() => {
 
 // Results to display (directly from incremental search)
 const rawVisibleResults = computed(() => results.value)
+const normalizedQuery = computed(() => query.value.trim().toLowerCase())
 
 // Settings for platform package filtering
 const { settings } = useSettings()
+
+interface EnrichedSearchResult {
+  result: NpmSearchResult
+  normalizedName: string
+  updatedAt: number
+  weeklyDownloads: number
+}
+
+const enrichedResults = computed<EnrichedSearchResult[]>(() => {
+  return (rawVisibleResults.value?.objects ?? []).map(result => ({
+    result,
+    normalizedName: result.package.name.toLowerCase(),
+    updatedAt: result.package.date ? Date.parse(result.package.date) : 0,
+    weeklyDownloads: result.downloads?.weekly ?? 0,
+  }))
+})
 
 /**
  * Reorder results to put exact package name match at the top,
  * and optionally filter out platform-specific packages.
  */
-const visibleResults = computed(() => {
-  const raw = rawVisibleResults.value
-  if (!raw) return raw
-
-  let objects = raw.objects
+const visibleResultEntries = computed<EnrichedSearchResult[]>(() => {
+  let entries = enrichedResults.value
 
   // Filter out platform-specific packages if setting is enabled
   if (settings.value.hidePlatformPackages) {
-    objects = objects.filter(r => !isPlatformSpecificPackage(r.package.name))
+    entries = entries.filter(entry => !isPlatformSpecificPackage(entry.result.package.name))
   }
 
-  const q = query.value.trim().toLowerCase()
+  const q = normalizedQuery.value
   if (!q) {
-    return objects === raw.objects ? raw : { ...raw, objects }
+    return entries
   }
 
   // Find exact match index
-  const exactIdx = objects.findIndex(r => r.package.name.toLowerCase() === q)
+  const exactIdx = entries.findIndex(entry => entry.normalizedName === q)
   if (exactIdx <= 0) {
-    return objects === raw.objects ? raw : { ...raw, objects }
+    return entries
   }
 
   // Move exact match to top
-  const reordered = [...objects]
+  const reordered = [...entries]
   const [exactMatch] = reordered.splice(exactIdx, 1)
   if (exactMatch) {
     reordered.unshift(exactMatch)
   }
 
-  return {
-    ...raw,
-    objects: reordered,
-  }
+  return reordered
 })
 
-// Use structured filters for client-side refinement of search results
-const resultsArray = computed(() => visibleResults.value?.objects ?? [])
+const resultsArray = computed(() => visibleResultEntries.value.map(entry => entry.result))
+
+const visibleResults = computed(() => {
+  const raw = rawVisibleResults.value
+  if (!raw) return raw
+
+  return {
+    ...raw,
+    objects: resultsArray.value,
+  }
+})
 
 // All possible non-relevance sort keys
 const ALL_SORT_KEYS: SortKey[] = [
@@ -223,27 +244,29 @@ const displayResults = computed(() => {
   // arbitrary sort orders server-side, so we fetch a large batch and sort here
   const { key, direction } = parseSortOption(sortOption.value)
   const multiplier = direction === 'asc' ? 1 : -1
-
-  return [...resultsArray.value].sort((a, b) => {
+  const sortedEntries = [...visibleResultEntries.value].sort((a, b) => {
     let diff: number
+
     switch (key) {
       case 'downloads-week':
       case 'downloads-day':
       case 'downloads-month':
       case 'downloads-year':
-        diff = (a.downloads?.weekly ?? 0) - (b.downloads?.weekly ?? 0)
+        diff = a.weeklyDownloads - b.weeklyDownloads
         break
       case 'updated':
-        diff = Date.parse(a.package.date) - Date.parse(b.package.date)
+        diff = a.updatedAt - b.updatedAt
         break
       case 'name':
-        diff = a.package.name.localeCompare(b.package.name)
+        diff = a.result.package.name.localeCompare(b.result.package.name)
         break
       default:
         diff = 0
     }
     return diff * multiplier
   })
+
+  return sortedEntries.map(entry => entry.result)
 })
 
 const resultCount = computed(() => displayResults.value.length)
@@ -369,9 +392,9 @@ const claimPackageModalRef = useTemplateRef('claimPackageModalRef')
 
 /** Check if there's an exact package match in results */
 const hasExactPackageMatch = computed(() => {
-  const q = query.value.trim().toLowerCase()
+  const q = normalizedQuery.value
   if (!q || !visibleResults.value) return false
-  return visibleResults.value.objects.some(r => r.package.name.toLowerCase() === q)
+  return visibleResultEntries.value.some(entry => entry.normalizedName === q)
 })
 
 /** Check if query is an exact org match (e.g., @nuxt matches org nuxt) */
