@@ -443,6 +443,10 @@ function scheduleFocusableElementsRefresh() {
 function stopObservingFocusableElements() {
   focusableElementsObserver?.disconnect()
   focusableElementsObserver = null
+  if (refreshFocusableElementsFrame != null) {
+    window.cancelAnimationFrame(refreshFocusableElementsFrame)
+    refreshFocusableElementsFrame = null
+  }
   focusableElements.value = []
 }
 
@@ -463,6 +467,9 @@ function startObservingFocusableElements() {
     attributeFilter: ['class', 'style', 'hidden', 'aria-hidden'],
   })
 
+  // Perform an initial synchronous refresh so focusableElements is populated
+  // before any immediate key handling (ArrowUp/ArrowDown) occurs.
+  refreshFocusableElements()
   scheduleFocusableElementsRefresh()
 }
 
