@@ -19,14 +19,23 @@ const standardReadmeFilenames = [
 
 /** Matches standard README filenames (case-insensitive, for checking registry metadata) */
 const standardReadmePattern = /^readme(?:\.md|\.markdown)?$/i
+const JSDELIVR_README_FETCH_BATCH_SIZE = 3
 
 export function isStandardReadme(filename: string | undefined): boolean {
   return !!filename && standardReadmePattern.test(filename)
 }
 
+function buildReadmeFetchCandidates(readmeFilename: string | undefined): string[] {
+  if (!readmeFilename) {
+    return standardReadmeFilenames
+  }
+
+  return [readmeFilename, ...standardReadmeFilenames.filter(name => name !== readmeFilename)]
+}
+
 /**
  * Fetch README from jsdelivr CDN for a specific package version.
- * Falls back through common README filenames.
+ * Falls back through candidate README filenames in small parallel batches.
  */
 export async function fetchReadmeFromJsdelivr(
   packageName: string,
@@ -35,15 +44,27 @@ export async function fetchReadmeFromJsdelivr(
 ): Promise<string | null> {
   const versionSuffix = version ? `@${version}` : ''
 
-  for (const filename of readmeFilenames) {
-    try {
-      const url = `https://cdn.jsdelivr.net/npm/${packageName}${versionSuffix}/${filename}`
-      const response = await fetch(url)
-      if (response.ok) {
-        return await response.text()
-      }
-    } catch {
-      // Try next filename
+  for (let index = 0; index < readmeFilenames.length; index += JSDELIVR_README_FETCH_BATCH_SIZE) {
+    const batch = readmeFilenames.slice(index, index + JSDELIVR_README_FETCH_BATCH_SIZE)
+    const responses = await Promise.all(
+      batch.map(async filename => {
+        try {
+          const url = `https://cdn.jsdelivr.net/npm/${packageName}${versionSuffix}/${filename}`
+          const response = await fetch(url)
+          if (!response.ok) {
+            return null
+          }
+
+          return await response.text()
+        } catch {
+          return null
+        }
+      }),
+    )
+
+    const matchedReadme = responses.find((response): response is string => response !== null)
+    if (matchedReadme) {
+      return matchedReadme
     }
   }
 
@@ -84,10 +105,11 @@ export const resolvePackageReadmeSource = defineCachedFunction(
       !isStandardReadme(readmeFilename) ||
       readmeContent!.length >= NPM_README_TRUNCATION_THRESHOLD
     ) {
+      const readmeCandidates = buildReadmeFetchCandidates(readmeFilename)
       const resolvedVersion = version ?? packageData['dist-tags']?.latest
       const jsdelivrReadme = await fetchReadmeFromJsdelivr(
         packageName,
-        standardReadmeFilenames,
+        readmeCandidates,
         resolvedVersion,
       )
       if (jsdelivrReadme) {
