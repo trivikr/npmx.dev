@@ -1,6 +1,25 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { JsDelivrFileNode, PackageFileTree } from '#shared/types'
-import { convertToFileTree, fetchFileTree, getPackageFileTree } from '#server/utils/file-tree'
+
+const getLatestVersionMock = vi.hoisted(() => vi.fn())
+
+vi.mock('fast-npm-meta', () => ({
+  getLatestVersion: getLatestVersionMock,
+}))
+
+vi.stubGlobal('defineCachedFunction', (fn: Function) => fn)
+
+const $fetchMock = vi.fn()
+vi.stubGlobal('$fetch', $fetchMock)
+vi.stubGlobal('encodePackageName', (packageName: string) => packageName)
+vi.stubGlobal(
+  'hasBuiltInTypes',
+  (pkg: { types?: string; typings?: string }) => !!pkg.types || !!pkg.typings,
+)
+vi.stubGlobal('getTypesPackageName', (packageName: string) => `@types/${packageName}`)
+
+const { convertToFileTree, fetchFileTree, getPackageFileTree, fetchPackageWithTypesAndFiles } =
+  await import('#server/utils/file-tree')
 
 const getChildren = (node?: PackageFileTree): PackageFileTree[] => node?.children ?? []
 
@@ -27,6 +46,12 @@ const mockCreateError = () => {
   vi.stubGlobal('createError', createErrorMock)
   return createErrorMock
 }
+
+beforeEach(() => {
+  $fetchMock.mockReset()
+  getLatestVersionMock.mockReset()
+  vi.stubGlobal('fetch', vi.fn())
+})
 
 describe('convertToFileTree', () => {
   it('converts jsDelivr nodes to a sorted tree with directories first', () => {
@@ -127,34 +152,22 @@ describe('fetchFileTree', () => {
 
     mockFetchOk(body)
 
-    try {
-      const result = await fetchFileTree('pkg', '1.0.0')
-      expect(result).toEqual(body)
-    } finally {
-      vi.unstubAllGlobals()
-    }
+    const result = await fetchFileTree('pkg', '1.0.0')
+    expect(result).toEqual(body)
   })
 
   it('throws a 404 error when package is not found', async () => {
     mockFetchError(404)
     mockCreateError()
 
-    try {
-      await expect(fetchFileTree('pkg', '1.0.0')).rejects.toMatchObject({ statusCode: 404 })
-    } finally {
-      vi.unstubAllGlobals()
-    }
+    await expect(fetchFileTree('pkg', '1.0.0')).rejects.toMatchObject({ statusCode: 404 })
   })
 
   it('throws a 502 error for non-404 failures', async () => {
     mockFetchError(500)
     mockCreateError()
 
-    try {
-      await expect(fetchFileTree('pkg', '1.0.0')).rejects.toMatchObject({ statusCode: 502 })
-    } finally {
-      vi.unstubAllGlobals()
-    }
+    await expect(fetchFileTree('pkg', '1.0.0')).rejects.toMatchObject({ statusCode: 502 })
   })
 })
 
@@ -176,16 +189,12 @@ describe('getPackageFileTree', () => {
 
     mockFetchOk(body)
 
-    try {
-      const result = await getPackageFileTree('pkg', '1.0.0')
-      expect(result.package).toBe('pkg')
-      expect(result.version).toBe('1.0.0')
-      expect(result.default).toBe('index.js')
-      expect(result.tree[0]?.path).toBe('src')
-      expect(result.tree[0]?.children?.[0]?.path).toBe('src/index.js')
-    } finally {
-      vi.unstubAllGlobals()
-    }
+    const result = await getPackageFileTree('pkg', '1.0.0')
+    expect(result.package).toBe('pkg')
+    expect(result.version).toBe('1.0.0')
+    expect(result.default).toBe('index.js')
+    expect(result.tree[0]?.path).toBe('src')
+    expect(result.tree[0]?.children?.[0]?.path).toBe('src/index.js')
   })
 
   it('returns undefined when default is missing', async () => {
@@ -198,11 +207,61 @@ describe('getPackageFileTree', () => {
 
     mockFetchOk(body)
 
-    try {
-      const result = await getPackageFileTree('pkg', '1.0.0')
-      expect(result.default).toBeUndefined()
-    } finally {
-      vi.unstubAllGlobals()
-    }
+    const result = await getPackageFileTree('pkg', '1.0.0')
+    expect(result.default).toBeUndefined()
+  })
+})
+
+describe('fetchPackageWithTypesAndFiles', () => {
+  it('returns package metadata and flattened files when types are external', async () => {
+    $fetchMock.mockResolvedValue({
+      name: 'pkg',
+      version: '1.0.0',
+      readme: '# docs',
+    })
+    getLatestVersionMock.mockResolvedValue({
+      version: '2.0.0',
+      deprecated: 'use bundled types',
+    })
+
+    mockFetchOk({
+      type: 'npm',
+      name: 'pkg',
+      version: '1.0.0',
+      files: [
+        {
+          type: 'directory',
+          name: 'src',
+          files: [{ type: 'file', name: 'index.ts', size: 5 }],
+        },
+      ],
+    })
+
+    const result = await fetchPackageWithTypesAndFiles('pkg', '1.0.0')
+
+    expect($fetchMock).toHaveBeenCalledWith('https://registry.npmjs.org/pkg/1.0.0')
+    expect(result.pkg.version).toBe('1.0.0')
+    expect(result.typesPackage).toEqual({
+      packageName: '@types/pkg',
+      deprecated: 'use bundled types',
+    })
+    expect(result.files).toEqual(new Set(['src/index.ts']))
+  })
+
+  it('skips types and file tree lookups when package ships built-in types', async () => {
+    $fetchMock.mockResolvedValue({
+      name: 'pkg',
+      version: '1.0.0',
+      types: './index.d.ts',
+    })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await fetchPackageWithTypesAndFiles('pkg', '1.0.0')
+
+    expect(result.typesPackage).toBeUndefined()
+    expect(result.files).toBeUndefined()
+    expect(getLatestVersionMock).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
