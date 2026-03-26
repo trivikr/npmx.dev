@@ -18,6 +18,25 @@ import { isBuiltin } from 'node:module'
 /** Timeout for fetching modules in milliseconds */
 const FETCH_TIMEOUT_MS = 30 * 1000
 
+/** Storage namespace for docs fetch caching */
+const DOCS_CACHE_STORAGE = 'cache:docs'
+
+/** TTL for immutable esm.sh package metadata and module responses */
+const DOCS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000
+
+type DocsCacheEntry<T> = {
+  value: T
+  cachedAt: number
+}
+
+type ModuleCacheValue = {
+  specifier: string
+  headers?: Record<string, string>
+  content: string
+}
+
+const inFlightCache = new Map<string, Promise<unknown>>()
+
 // =============================================================================
 // Main Export
 // =============================================================================
@@ -65,6 +84,70 @@ interface LoadResponse {
   content: string
 }
 
+function getDocsCacheStorage() {
+  return useStorage(DOCS_CACHE_STORAGE)
+}
+
+async function getCachedValue<T>(key: string): Promise<T | null> {
+  try {
+    const entry = await getDocsCacheStorage().getItem<DocsCacheEntry<T>>(key)
+    if (!entry) {
+      return null
+    }
+
+    if (Date.now() - entry.cachedAt > DOCS_CACHE_TTL_MS) {
+      void getDocsCacheStorage().removeItem(key)
+      return null
+    }
+
+    return entry.value
+  } catch {
+    return null
+  }
+}
+
+async function setCachedValue<T>(key: string, value: T): Promise<void> {
+  try {
+    await getDocsCacheStorage().setItem<DocsCacheEntry<T>>(key, {
+      value,
+      cachedAt: Date.now(),
+    })
+  } catch {
+    // Ignore cache write failures and continue serving the response.
+  }
+}
+
+async function getOrSetCachedValue<T>(
+  key: string,
+  load: () => Promise<T | null>,
+): Promise<T | null> {
+  const cached = await getCachedValue<T>(key)
+  if (cached !== null) {
+    return cached
+  }
+
+  const existing = inFlightCache.get(key)
+  if (existing) {
+    return (await existing) as T | null
+  }
+
+  const promise = (async () => {
+    const value = await load()
+    if (value !== null) {
+      await setCachedValue(key, value)
+    }
+    return value
+  })()
+
+  inFlightCache.set(key, promise)
+
+  try {
+    return await promise
+  } finally {
+    inFlightCache.delete(key)
+  }
+}
+
 /**
  * Create a custom module loader for @deno/doc.
  *
@@ -93,33 +176,46 @@ function createLoader(): (
       return undefined
     }
 
-    try {
-      const response = await $fetch.raw<Blob>(url.toString(), {
-        method: 'GET',
-        timeout: FETCH_TIMEOUT_MS,
-        redirect: 'follow',
-      })
+    const cacheKey = `module:${url.toString()}`
+    const cached = await getOrSetCachedValue<ModuleCacheValue>(cacheKey, async () => {
+      try {
+        const response = await $fetch.raw<Blob>(url.toString(), {
+          method: 'GET',
+          timeout: FETCH_TIMEOUT_MS,
+          redirect: 'follow',
+        })
 
-      if (response.status !== 200) {
-        return undefined
-      }
+        if (response.status !== 200) {
+          return null
+        }
 
-      const content = (await response._data?.text()) ?? ''
-      const headers: Record<string, string> = {}
-      for (const [key, value] of response.headers) {
-        headers[key.toLowerCase()] = value
-      }
+        const content = (await response._data?.text()) ?? ''
+        const headers: Record<string, string> = {}
+        for (const [key, value] of response.headers) {
+          headers[key.toLowerCase()] = value
+        }
 
-      return {
-        kind: 'module',
-        specifier: response.url || specifier,
-        headers,
-        content,
+        return {
+          specifier: response.url || specifier,
+          headers,
+          content,
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e)
+        return null
       }
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error(e)
+    })
+
+    if (!cached) {
       return undefined
+    }
+
+    return {
+      kind: 'module',
+      specifier: cached.specifier,
+      headers: cached.headers,
+      content: cached.content,
     }
   }
 }
@@ -162,16 +258,19 @@ function createResolver(): (specifier: string, referrer: string) => string {
  */
 async function getTypesUrl(packageName: string, version: string): Promise<string | null> {
   const url = `https://esm.sh/${packageName}@${version}`
+  const cacheKey = `types:${url}`
 
-  try {
-    const response = await $fetch.raw(url, {
-      method: 'HEAD',
-      timeout: FETCH_TIMEOUT_MS,
-    })
-    return response.headers.get('x-typescript-types')
-  } catch (e) {
-    // eslint-disable-next-line no-console
-    console.error(e)
-    return null
-  }
+  return getOrSetCachedValue<string>(cacheKey, async () => {
+    try {
+      const response = await $fetch.raw(url, {
+        method: 'HEAD',
+        timeout: FETCH_TIMEOUT_MS,
+      })
+      return response.headers.get('x-typescript-types')
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(e)
+      return null
+    }
+  })
 }
