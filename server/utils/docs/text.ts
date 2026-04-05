@@ -135,10 +135,9 @@ export async function renderMarkdown(text: string, symbolLookup: SymbolLookup): 
     codeBlockData.map(({ lang, code }) => highlightCodeBlock(code, lang)),
   )
 
-  for (let i = 0; i < highlightedCodeBlocks.length; i++) {
-    const highlighted = highlightedCodeBlocks[i]!
+  highlightedCodeBlocks.forEach((highlighted, i) => {
     result = result.replace(`__CODE_BLOCK_${i}__`, highlighted)
-  }
+  })
 
   return result
 }

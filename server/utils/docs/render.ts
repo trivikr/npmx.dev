@@ -141,7 +141,7 @@ async function renderMergedSymbol(
     jsDocTagsPromise,
   ])
 
-  if (signatures.length > 0) {
+  if (highlightedSignature) {
     lines.push(`<div class="docs-signature">${highlightedSignature}</div>`)
 
     if (symbol.nodes.length > MAX_OVERLOAD_SIGNATURES) {
