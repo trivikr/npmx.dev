@@ -26,11 +26,9 @@ export function isStandardReadme(filename: string | undefined): boolean {
 }
 
 function buildReadmeFetchCandidates(readmeFilename: string | undefined): string[] {
-  if (!readmeFilename) {
-    return standardReadmeFilenames
-  }
-
-  return [readmeFilename, ...standardReadmeFilenames.filter(name => name !== readmeFilename)]
+  return readmeFilename
+    ? standardReadmeFilenames.filter(name => name !== readmeFilename)
+    : standardReadmeFilenames
 }
 
 /**
@@ -105,13 +103,20 @@ export const resolvePackageReadmeSource = defineCachedFunction(
       !isStandardReadme(readmeFilename) ||
       readmeContent!.length >= NPM_README_TRUNCATION_THRESHOLD
     ) {
-      const readmeCandidates = buildReadmeFetchCandidates(readmeFilename)
       const resolvedVersion = version ?? packageData['dist-tags']?.latest
-      const jsdelivrReadme = await fetchReadmeFromJsdelivr(
-        packageName,
-        readmeCandidates,
-        resolvedVersion,
-      )
+      let jsdelivrReadme =
+        readmeFilename &&
+        (await fetchReadmeFromJsdelivr(packageName, [readmeFilename], resolvedVersion))
+
+      if (!jsdelivrReadme) {
+        const readmeCandidates = buildReadmeFetchCandidates(readmeFilename)
+        jsdelivrReadme = await fetchReadmeFromJsdelivr(
+          packageName,
+          readmeCandidates,
+          resolvedVersion,
+        )
+      }
+
       if (jsdelivrReadme) {
         readmeContent = jsdelivrReadme
       }

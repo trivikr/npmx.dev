@@ -259,6 +259,79 @@ describe('resolvePackageReadmeSource', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://cdn.jsdelivr.net/npm/pkg/DOCS.md')
   })
 
+  it('tries a provided readmeFilename before starting the fallback batch', async () => {
+    let resolveDocs!: (value: { ok: false }) => void
+    let resolveReadmeMd!: (value: { ok: false }) => void
+    let resolveLowercase!: (value: { ok: false }) => void
+    let resolveReadmeCase!: (value: { ok: true; text: () => Promise<string> }) => void
+
+    fetchNpmPackageMock.mockResolvedValue({
+      readme: undefined,
+      readmeFilename: 'DOCS.md',
+      repository: undefined,
+      versions: {},
+    })
+    parseRepositoryInfoMock.mockReturnValue(undefined)
+
+    const fetchMock = vi.fn((url: string) => {
+      if (url.endsWith('/DOCS.md')) {
+        return new Promise(resolve => {
+          resolveDocs = resolve
+        })
+      }
+
+      if (url.endsWith('/README.md')) {
+        return new Promise(resolve => {
+          resolveReadmeMd = resolve
+        })
+      }
+
+      if (url.endsWith('/readme.md')) {
+        return new Promise(resolve => {
+          resolveLowercase = resolve
+        })
+      }
+
+      if (url.endsWith('/Readme.md')) {
+        return new Promise(resolve => {
+          resolveReadmeCase = resolve
+        })
+      }
+
+      return Promise.resolve({ ok: false })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const resultPromise = resolvePackageReadmeSource('pkg')
+
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://cdn.jsdelivr.net/npm/pkg/DOCS.md')
+
+    resolveDocs({ ok: false })
+
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock.mock.calls.slice(1).map(([url]) => url)).toEqual([
+      'https://cdn.jsdelivr.net/npm/pkg/README.md',
+      'https://cdn.jsdelivr.net/npm/pkg/readme.md',
+      'https://cdn.jsdelivr.net/npm/pkg/Readme.md',
+    ])
+
+    resolveReadmeMd({ ok: false })
+    resolveLowercase({ ok: false })
+    resolveReadmeCase({
+      ok: true,
+      text: async () => '# From fallback batch',
+    })
+
+    await expect(resultPromise).resolves.toMatchObject({
+      packageName: 'pkg',
+      markdown: '# From fallback batch',
+      repoInfo: undefined,
+    })
+  })
+
   it('returns undefined markdown when no content and jsdelivr fails', async () => {
     fetchNpmPackageMock.mockResolvedValue({
       readme: undefined,
