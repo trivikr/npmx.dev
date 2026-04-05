@@ -195,9 +195,9 @@ async function renderJsDocTags(tags: JsDocTag[], symbolLookup: SymbolLookup): Pr
     const code = example.doc.replace(/```\w*\n?/g, '').trim()
     return highlightCodeBlock(code, lang)
   })
-  const [renderedDeprecatedMessage, renderedExamples] = await Promise.all([
+  const [renderedDeprecatedMessage, ...renderedExamples] = await Promise.all([
     deprecatedMessagePromise,
-    Promise.all(examplePromises),
+    ...examplePromises,
   ])
 
   // Deprecated warning
