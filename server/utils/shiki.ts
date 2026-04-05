@@ -3,6 +3,7 @@ import { createHighlighterCore, type HighlighterCore } from 'shiki/core'
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 
 let highlighter: HighlighterCore | null = null
+let highlighterPromise: Promise<HighlighterCore> | null = null
 
 function replaceThemeColors(
   theme: ThemeRegistration,
@@ -18,8 +19,12 @@ function replaceThemeColors(
 }
 
 export async function getShikiHighlighter(): Promise<HighlighterCore> {
-  if (!highlighter) {
-    highlighter = await createHighlighterCore({
+  if (highlighter) {
+    return highlighter
+  }
+
+  if (!highlighterPromise) {
+    highlighterPromise = createHighlighterCore({
       themes: [
         import('@shikijs/themes/github-dark'),
         import('@shikijs/themes/github-light').then(t =>
@@ -75,8 +80,17 @@ export async function getShikiHighlighter(): Promise<HighlighterCore> {
       },
       engine: createJavaScriptRegexEngine(),
     })
+      .then(createdHighlighter => {
+        highlighter = createdHighlighter
+        return createdHighlighter
+      })
+      .catch(error => {
+        highlighterPromise = null
+        throw error
+      })
   }
-  return highlighter
+
+  return highlighterPromise
 }
 
 /**
