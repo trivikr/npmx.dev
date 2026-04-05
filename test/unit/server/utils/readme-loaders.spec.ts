@@ -135,6 +135,28 @@ describe('fetchReadmeFromJsdelivr', () => {
     await expect(resultPromise).resolves.toBe('# Package')
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
+
+  it('reads only the matched successful response body', async () => {
+    const firstTextMock = vi.fn().mockResolvedValue('# First')
+    const secondTextMock = vi.fn().mockResolvedValue('# Second')
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        text: firstTextMock,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: secondTextMock,
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await fetchReadmeFromJsdelivr('pkg', ['README.md', 'readme.md'])
+
+    expect(result).toBe('# First')
+    expect(firstTextMock).toHaveBeenCalledTimes(1)
+    expect(secondTextMock).not.toHaveBeenCalled()
+  })
 })
 
 describe('resolvePackageReadmeSource', () => {

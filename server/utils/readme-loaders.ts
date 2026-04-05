@@ -55,16 +55,16 @@ export async function fetchReadmeFromJsdelivr(
             return null
           }
 
-          return await response.text()
+          return response
         } catch {
           return null
         }
       }),
     )
 
-    const matchedReadme = responses.find((response): response is string => response !== null)
+    const matchedReadme = responses.find((response): response is Response => response !== null)
     if (matchedReadme) {
-      return matchedReadme
+      return await matchedReadme.text()
     }
   }
 
