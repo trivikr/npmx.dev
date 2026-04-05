@@ -5,12 +5,12 @@ const props = defineProps<{
   packageName: string
   isBinary?: boolean
   version?: string
+  analysisData?: PackageAnalysisResponse | null
+  status?: string
 }>()
 
-const { data: analysis, status } = usePackageAnalysis(
-  () => props.packageName,
-  () => props.version,
-)
+const analysis = computed(() => props.analysisData ?? null)
+const status = computed(() => props.status ?? 'idle')
 
 const isLoading = computed(() => status.value !== 'error' && !analysis.value)
 

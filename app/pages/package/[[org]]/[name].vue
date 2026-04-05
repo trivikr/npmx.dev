@@ -164,7 +164,14 @@ const { data: skillsData } = useLazyFetch<SkillsListResponse>(
   { default: () => ({ package: '', version: '', skills: [] }) },
 )
 
-const { data: packageAnalysis } = usePackageAnalysis(packageName, requestedVersion)
+const {
+  data: packageAnalysis,
+  status: packageAnalysisStatus,
+  execute: fetchPackageAnalysis,
+} = usePackageAnalysis(packageName, resolvedVersion, {
+  server: false,
+  immediate: false,
+})
 const { data: moduleReplacement } = useModuleReplacement(packageName)
 
 if (
@@ -237,6 +244,82 @@ if (isSpaFallback.value || isHydratingWithServerContent.value) {
   nuxtApp.hooks.hookOnce('app:suspense:resolve', () => {
     isSpaFallback.value = false
     isHydratingWithServerContent.value = false
+  })
+}
+
+const packageAnalysisTrigger = useTemplateRef<HTMLElement>('packageAnalysisTrigger')
+const packageAnalysisKey = computed(() => {
+  if (resolvedStatus.value !== 'success' || !resolvedVersion.value) return null
+  return `${packageName.value}@${resolvedVersion.value}`
+})
+const lastPackageAnalysisRequestKey = shallowRef<string | null>(null)
+
+let packageAnalysisObserver: IntersectionObserver | null = null
+let packageAnalysisIdleHandle: number | null = null
+
+function clearPackageAnalysisIdleHandle() {
+  if (!import.meta.client || packageAnalysisIdleHandle === null) return
+
+  if ('cancelIdleCallback' in window) {
+    window.cancelIdleCallback(packageAnalysisIdleHandle)
+  } else {
+    window.clearTimeout(packageAnalysisIdleHandle)
+  }
+
+  packageAnalysisIdleHandle = null
+}
+
+function runPackageAnalysis() {
+  const key = packageAnalysisKey.value
+  if (!key || lastPackageAnalysisRequestKey.value === key) return
+
+  lastPackageAnalysisRequestKey.value = key
+  clearPackageAnalysisIdleHandle()
+  void fetchPackageAnalysis()
+}
+
+function schedulePackageAnalysis() {
+  clearPackageAnalysisIdleHandle()
+  if (!import.meta.client || !packageAnalysisKey.value) return
+
+  if ('requestIdleCallback' in window) {
+    packageAnalysisIdleHandle = window.requestIdleCallback(runPackageAnalysis, {
+      timeout: 2000,
+    })
+  } else {
+    packageAnalysisIdleHandle = window.setTimeout(runPackageAnalysis, 1500)
+  }
+}
+
+if (import.meta.client) {
+  onMounted(() => {
+    if ('IntersectionObserver' in window && packageAnalysisTrigger.value) {
+      packageAnalysisObserver = new IntersectionObserver(
+        entries => {
+          if (entries.some(entry => entry.isIntersecting)) {
+            runPackageAnalysis()
+          }
+        },
+        { rootMargin: '160px 0px' },
+      )
+      packageAnalysisObserver.observe(packageAnalysisTrigger.value)
+    }
+
+    schedulePackageAnalysis()
+  })
+
+  watch(packageAnalysisKey, () => {
+    packageAnalysisObserver?.disconnect()
+    if (packageAnalysisObserver && packageAnalysisTrigger.value) {
+      packageAnalysisObserver.observe(packageAnalysisTrigger.value)
+    }
+    schedulePackageAnalysis()
+  })
+
+  onBeforeUnmount(() => {
+    packageAnalysisObserver?.disconnect()
+    packageAnalysisObserver = null
+    clearPackageAnalysisIdleHandle()
   })
 }
 
@@ -533,7 +616,7 @@ const showSkeleton = shallowRef(false)
       <article id="package-article" :class="$style.packagePage" class="container w-full">
         <!-- Package details -->
         <section :class="$style.areaDetails">
-          <div class="mb-4 pt-4">
+          <div ref="packageAnalysisTrigger" class="mb-4 pt-4">
             <!-- Description container with min-height to prevent CLS -->
             <div class="max-w-2xl">
               <p v-if="pkgDescription" class="text-fg-muted text-base m-0">
@@ -549,6 +632,8 @@ const showSkeleton = shallowRef(false)
               v-if="resolvedVersion"
               :package-name="packageName"
               :version="resolvedVersion"
+              :analysis-data="packageAnalysis"
+              :status="packageAnalysisStatus"
               :is-binary="isBinaryOnly"
               class="self-baseline mt-4"
             />
