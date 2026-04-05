@@ -185,6 +185,7 @@ async function renderJsDocTags(tags: JsDocTag[], symbolLookup: SymbolLookup): Pr
   const examples = tags.filter(t => t.kind === 'example')
   const deprecated = tags.find(t => t.kind === 'deprecated')
   const see = tags.filter(t => t.kind === 'see')
+
   const deprecatedMessagePromise = deprecated?.doc
     ? renderMarkdown(deprecated.doc.replace(/\n/g, ' '), symbolLookup)
     : null
@@ -195,6 +196,7 @@ async function renderJsDocTags(tags: JsDocTag[], symbolLookup: SymbolLookup): Pr
     const code = example.doc.replace(/```\w*\n?/g, '').trim()
     return highlightCodeBlock(code, lang)
   })
+
   const [renderedDeprecatedMessage, ...renderedExamples] = await Promise.all([
     deprecatedMessagePromise,
     ...examplePromises,
@@ -238,7 +240,7 @@ async function renderJsDocTags(tags: JsDocTag[], symbolLookup: SymbolLookup): Pr
   }
 
   // Examples (with syntax highlighting)
-  if (examples.length > 0) {
+  if (examples.length > 0 && renderedExamples.some(Boolean)) {
     lines.push(`<div class="docs-examples">`)
     lines.push(`<h4>Example${examples.length > 1 ? 's' : ''}</h4>`)
     lines.push(...renderedExamples.filter(Boolean))
