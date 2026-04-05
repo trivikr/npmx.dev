@@ -11,6 +11,7 @@ const props = defineProps<{
   peerDependencies?: Record<string, string>
   peerDependenciesMeta?: Record<string, { optional?: boolean }>
   optionalDependencies?: Record<string, string>
+  analysisData?: VulnerabilityTreeResult | null
 }>()
 
 // Fetch outdated info for dependencies
@@ -19,11 +20,8 @@ const outdatedDeps = useOutdatedDependencies(() => props.dependencies)
 // Fetch replacement suggestions for dependencies
 const replacementDeps = useReplacementDependencies(() => props.dependencies)
 
-// Get vulnerability info from shared cache (already fetched by PackageVulnerabilityTree)
-const { data: vulnTree } = useDependencyAnalysis(
-  () => props.packageName,
-  () => props.version,
-)
+// Dependency analysis is fetched lazily by the package page and passed down once available.
+const vulnTree = computed(() => props.analysisData ?? null)
 
 // Check if a dependency has vulnerabilities (only direct deps)
 function getVulnerableDepInfo(depName: string) {

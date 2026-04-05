@@ -164,6 +164,15 @@ const { data: skillsData } = useLazyFetch<SkillsListResponse>(
   { default: () => ({ package: '', version: '', skills: [] }) },
 )
 
+const {
+  data: dependencyAnalysis,
+  status: dependencyAnalysisStatus,
+  execute: fetchDependencyAnalysis,
+} = useDependencyAnalysis(packageName, () => resolvedVersion.value ?? '', {
+  server: false,
+  immediate: false,
+})
+
 const { data: packageAnalysis } = usePackageAnalysis(packageName, requestedVersion)
 const { data: moduleReplacement } = useModuleReplacement(packageName)
 
@@ -241,6 +250,82 @@ if (isSpaFallback.value || isHydratingWithServerContent.value) {
 }
 
 const displayVersion = computed(() => pkg.value?.requestedVersion ?? null)
+const dependencyAnalysisSection = useTemplateRef<HTMLElement>('dependencyAnalysisSection')
+const dependencyAnalysisKey = computed(() => {
+  const version = resolvedVersion.value
+  return version ? `${packageName.value}@${version}` : null
+})
+const lastDependencyAnalysisRequestKey = shallowRef<string | null>(null)
+
+let dependencyAnalysisObserver: IntersectionObserver | null = null
+let dependencyAnalysisIdleHandle: number | null = null
+
+function clearDependencyAnalysisIdleHandle() {
+  if (!import.meta.client || dependencyAnalysisIdleHandle === null) return
+
+  if ('cancelIdleCallback' in window) {
+    window.cancelIdleCallback(dependencyAnalysisIdleHandle)
+  } else {
+    window.clearTimeout(dependencyAnalysisIdleHandle)
+  }
+
+  dependencyAnalysisIdleHandle = null
+}
+
+function runDependencyAnalysis() {
+  const key = dependencyAnalysisKey.value
+  if (!key || lastDependencyAnalysisRequestKey.value === key) return
+
+  lastDependencyAnalysisRequestKey.value = key
+  clearDependencyAnalysisIdleHandle()
+  void fetchDependencyAnalysis()
+}
+
+function scheduleDependencyAnalysis() {
+  clearDependencyAnalysisIdleHandle()
+  if (!import.meta.client || !dependencyAnalysisKey.value) return
+
+  if ('requestIdleCallback' in window) {
+    dependencyAnalysisIdleHandle = window.requestIdleCallback(runDependencyAnalysis, {
+      timeout: 2000,
+    })
+  } else {
+    dependencyAnalysisIdleHandle = window.setTimeout(runDependencyAnalysis, 1500)
+  }
+}
+
+if (import.meta.client) {
+  onMounted(() => {
+    if ('IntersectionObserver' in window && dependencyAnalysisSection.value) {
+      dependencyAnalysisObserver = new IntersectionObserver(
+        entries => {
+          if (entries.some(entry => entry.isIntersecting)) {
+            runDependencyAnalysis()
+          }
+        },
+        { rootMargin: '240px 0px' },
+      )
+      dependencyAnalysisObserver.observe(dependencyAnalysisSection.value)
+    }
+
+    scheduleDependencyAnalysis()
+  })
+
+  watch(dependencyAnalysisKey, () => {
+    dependencyAnalysisObserver?.disconnect()
+    if (dependencyAnalysisObserver && dependencyAnalysisSection.value) {
+      dependencyAnalysisObserver.observe(dependencyAnalysisSection.value)
+    }
+    scheduleDependencyAnalysis()
+  })
+
+  onBeforeUnmount(() => {
+    dependencyAnalysisObserver?.disconnect()
+    dependencyAnalysisObserver = null
+    clearDependencyAnalysisIdleHandle()
+  })
+}
+
 const versionSecurityMetadata = computed<PackageVersionInfo[]>(() => {
   if (!pkg.value) return []
   if (pkg.value.securityVersions?.length) return pkg.value.securityVersions
@@ -258,13 +343,6 @@ const versionSecurityMetadata = computed<PackageVersionInfo[]>(() => {
 const pkgDescription = useMarkdown(() => ({
   text: pkg.value?.description ?? '',
 }))
-
-// Fetch dependency analysis (lazy, client-side)
-// This is the same composable used by PackageVulnerabilityTree and PackageDeprecatedTree
-const { data: vulnTree, status: vulnTreeStatus } = useDependencyAnalysis(
-  packageName,
-  () => resolvedVersion.value ?? '',
-)
 
 const {
   data: provenanceData,
@@ -379,14 +457,14 @@ const hasDependencies = computed(() => {
 })
 
 // Vulnerability count for the stats banner
-const vulnCount = computed(() => vulnTree.value?.totalCounts.total ?? 0)
+const vulnCount = computed(() => dependencyAnalysis.value?.totalCounts.total ?? 0)
 const hasVulnerabilities = computed(() => vulnCount.value > 0)
 
 // Total transitive dependencies count (from either vuln tree or install size)
 // Subtract 1 to exclude the root package itself
 const totalDepsCount = computed(() => {
-  if (vulnTree.value) {
-    return vulnTree.value.totalPackages ? vulnTree.value.totalPackages - 1 : 0
+  if (dependencyAnalysis.value) {
+    return dependencyAnalysis.value.totalPackages ? dependencyAnalysis.value.totalPackages - 1 : 0
   }
   if (installSize.value) {
     return installSize.value.dependencyCount
@@ -601,8 +679,8 @@ const showSkeleton = shallowRef(false)
                     <ClientOnly>
                       <span
                         v-if="
-                          vulnTreeStatus === 'pending' ||
-                          (installSizeStatus === 'pending' && !vulnTree)
+                          dependencyAnalysisStatus === 'pending' ||
+                          (installSizeStatus === 'pending' && !dependencyAnalysis)
                         "
                         class="inline-flex items-center gap-1 text-fg-subtle"
                       >
@@ -692,12 +770,14 @@ const showSkeleton = shallowRef(false)
               </dt>
               <dd class="font-mono text-sm text-fg">
                 <span
-                  v-if="vulnTreeStatus === 'pending' || vulnTreeStatus === 'idle'"
+                  v-if="
+                    dependencyAnalysisStatus === 'pending' || dependencyAnalysisStatus === 'idle'
+                  "
                   class="inline-flex items-center gap-1 text-fg-subtle"
                 >
                   <span class="i-svg-spinners:ring-resize w-3 h-3" aria-hidden="true" />
                 </span>
-                <span v-else-if="vulnTreeStatus === 'success'">
+                <span v-else-if="dependencyAnalysisStatus === 'success'">
                   <span v-if="hasVulnerabilities" class="text-amber-700 dark:text-amber-500">
                     {{ numberFormatter.format(vulnCount) }}
                   </span>
@@ -882,7 +962,7 @@ const showSkeleton = shallowRef(false)
           </div>
         </section>
 
-        <div class="space-y-6" :class="$style.areaVulns">
+        <div ref="dependencyAnalysisSection" class="space-y-6" :class="$style.areaVulns">
           <!-- Bad package warning -->
           <PackageReplacement v-if="moduleReplacement" :replacement="moduleReplacement" />
           <!-- Size / dependency increase notice -->
@@ -890,14 +970,12 @@ const showSkeleton = shallowRef(false)
           <!-- Vulnerability scan -->
           <ClientOnly>
             <PackageVulnerabilityTree
-              v-if="resolvedVersion"
-              :package-name="pkg.name"
-              :version="resolvedVersion"
+              :analysis-data="dependencyAnalysis"
+              :status="dependencyAnalysisStatus"
             />
             <PackageDeprecatedTree
-              v-if="resolvedVersion"
-              :package-name="pkg.name"
-              :version="resolvedVersion"
+              :analysis-data="dependencyAnalysis"
+              :status="dependencyAnalysisStatus"
               class="mt-3"
             />
           </ClientOnly>
@@ -965,6 +1043,7 @@ const showSkeleton = shallowRef(false)
               :peer-dependencies="displayVersion.peerDependencies"
               :peer-dependencies-meta="displayVersion.peerDependenciesMeta"
               :optional-dependencies="displayVersion.optionalDependencies"
+              :analysis-data="dependencyAnalysis"
             />
 
             <!-- Keywords -->
