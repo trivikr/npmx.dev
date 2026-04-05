@@ -60,9 +60,11 @@ export async function fetchReadmeFromJsdelivr(
       }),
     )
 
-    const matchedReadme = responses.find((response): response is Response => response !== null)
-    if (matchedReadme) {
-      return await matchedReadme.text()
+    for (const response of responses) {
+      const text = await response?.text()
+      if (text?.trim()) {
+        return text
+      }
     }
   }
 
