@@ -136,7 +136,7 @@ export async function renderMarkdown(text: string, symbolLookup: SymbolLookup): 
   )
 
   highlightedCodeBlocks.forEach((highlighted, i) => {
-    result = result.replace(`__CODE_BLOCK_${i}__`, highlighted)
+    result = result.replace(`__CODE_BLOCK_${i}__`, () => highlighted)
   })
 
   return result
