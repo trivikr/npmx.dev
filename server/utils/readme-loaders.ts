@@ -104,10 +104,13 @@ export const resolvePackageReadmeSource = defineCachedFunction(
       readmeContent!.length >= NPM_README_TRUNCATION_THRESHOLD
     ) {
       const resolvedVersion = version ?? packageData['dist-tags']?.latest
+
+      // try fetching the given readme file first
       let jsdelivrReadme =
         readmeFilename &&
         (await fetchReadmeFromJsdelivr(packageName, [readmeFilename], resolvedVersion))
 
+      // if it's unsucessful, fetch all known readme filenames
       if (!jsdelivrReadme) {
         const readmeCandidates = buildReadmeFetchCandidates(readmeFilename)
         jsdelivrReadme = await fetchReadmeFromJsdelivr(
@@ -117,6 +120,7 @@ export const resolvePackageReadmeSource = defineCachedFunction(
         )
       }
 
+      // if we found sometihng, use it
       if (jsdelivrReadme) {
         readmeContent = jsdelivrReadme
       }
