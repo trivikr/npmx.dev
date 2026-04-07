@@ -25,6 +25,13 @@ export function isStandardReadme(filename: string | undefined): boolean {
   return !!filename && standardReadmePattern.test(filename)
 }
 
+async function cancelUnreadBatchResponses(
+  responses: Array<Response | null>,
+  startIndex: number,
+): Promise<void> {
+  await Promise.allSettled(responses.slice(startIndex).map(response => response?.body?.cancel()))
+}
+
 function buildReadmeFetchCandidates(readmeFilename: string | undefined): string[] {
   return readmeFilename
     ? standardReadmeFilenames.filter(name => name !== readmeFilename)
@@ -60,9 +67,10 @@ export async function fetchReadmeFromJsdelivr(
       }),
     )
 
-    for (const response of responses) {
+    for (const [responseIndex, response] of responses.entries()) {
       const text = await response?.text()
       if (text?.trim()) {
+        await cancelUnreadBatchResponses(responses, responseIndex + 1)
         return text
       }
     }

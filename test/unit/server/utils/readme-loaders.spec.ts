@@ -139,6 +139,7 @@ describe('fetchReadmeFromJsdelivr', () => {
   it('reads only the matched successful response body', async () => {
     const firstTextMock = vi.fn().mockResolvedValue('# First')
     const secondTextMock = vi.fn().mockResolvedValue('# Second')
+    const secondCancelMock = vi.fn().mockResolvedValue(undefined)
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({
@@ -148,6 +149,9 @@ describe('fetchReadmeFromJsdelivr', () => {
       .mockResolvedValueOnce({
         ok: true,
         text: secondTextMock,
+        body: {
+          cancel: secondCancelMock,
+        },
       })
     vi.stubGlobal('fetch', fetchMock)
 
@@ -156,6 +160,7 @@ describe('fetchReadmeFromJsdelivr', () => {
     expect(result).toBe('# First')
     expect(firstTextMock).toHaveBeenCalledTimes(1)
     expect(secondTextMock).not.toHaveBeenCalled()
+    expect(secondCancelMock).toHaveBeenCalledTimes(1)
   })
 })
 
