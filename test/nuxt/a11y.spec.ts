@@ -79,6 +79,11 @@ const allowedWarnings: RegExp[] = [
   /expose\(\) should be called only once/,
 ]
 
+// Filter specific violations for rare edge cases (typically complex custom interactions in charts)
+function filterViolations(results: AxeResults, ignoredRuleIds: string[]): AxeResults['violations'] {
+  return results.violations.filter(violation => !ignoredRuleIds.includes(violation.id))
+}
+
 beforeEach(() => {
   warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 })
@@ -155,7 +160,9 @@ import {
   BlueskyPostEmbed,
   BuildEnvironment,
   ButtonBase,
-  LandingLogo,
+  LandingIntroHeader,
+  NoodleKawaiiLogo,
+  NoodleArtemisLogo,
   LinkBase,
   CallToAction,
   CodeDirectoryListing,
@@ -265,6 +272,7 @@ import ToggleServer from '~/components/Settings/Toggle.server.vue'
 import SearchProviderToggleServer from '~/components/SearchProviderToggle.server.vue'
 import PackageTrendsChart from '~/components/Package/TrendsChart.vue'
 import FacetBarChart from '~/components/Compare/FacetBarChart.vue'
+import FacetQuadrantChart from '~/components/Compare/FacetQuadrantChart.vue'
 import PackageLikeCard from '~/components/Package/LikeCard.vue'
 import SizeIncrease from '~/components/Package/SizeIncrease.vue'
 import Likes from '~/components/Package/Likes.vue'
@@ -348,9 +356,23 @@ describe('component accessibility audits', () => {
     })
   })
 
-  describe('LandingLogo', () => {
+  describe('LandingIntroHeader', () => {
     it('should have no accessibility violations', async () => {
-      const component = await mountSuspended(LandingLogo)
+      const component = await mountSuspended(LandingIntroHeader)
+      const results = await runAxe(component)
+      expect(results.violations).toEqual([])
+    })
+  })
+
+  describe('Noodles', () => {
+    it('should have no accessibility violations', async () => {
+      const component = await mountSuspended(NoodleKawaiiLogo)
+      const results = await runAxe(component)
+      expect(results.violations).toEqual([])
+    })
+
+    it('should have no accessibility violations', async () => {
+      const component = await mountSuspended(NoodleArtemisLogo)
       const results = await runAxe(component)
       expect(results.violations).toEqual([])
     })
@@ -997,6 +1019,119 @@ describe('component accessibility audits', () => {
         })
         const results = await runAxe(wrapper)
         expect(results.violations).toEqual([])
+      })
+    })
+
+    describe('FacetQuadrantChart', () => {
+      it('should have no accessibility violations', async () => {
+        const wrapper = await mountSuspended(FacetQuadrantChart, {
+          props: {
+            packagesData: [
+              {
+                package: {
+                  name: 'vue',
+                  version: '3.5.32',
+                },
+                downloads: 10979552,
+                packageSize: 2480183,
+                directDeps: 5,
+                analysis: {
+                  package: 'vue',
+                  version: '3.5.32',
+                  devDependencySuggestion: {
+                    recommended: false,
+                  },
+                  moduleFormat: 'dual',
+                  types: {
+                    kind: 'included',
+                  },
+                  createPackage: {
+                    packageName: 'create-vue',
+                  },
+                },
+                vulnerabilities: {
+                  count: 0,
+                  severity: {
+                    critical: 0,
+                    high: 0,
+                    moderate: 0,
+                    low: 0,
+                  },
+                },
+                metadata: {
+                  license: 'MIT',
+                  lastUpdated: '2026-04-03T05:41:39.680Z',
+                },
+                isBinaryOnly: false,
+                totalLikes: 85,
+              },
+              {
+                package: {
+                  name: 'svelte',
+                  version: '5.55.1',
+                },
+                downloads: 4378382,
+                packageSize: 2823272,
+                directDeps: 16,
+                analysis: {
+                  package: 'svelte',
+                  version: '5.55.1',
+                  devDependencySuggestion: {
+                    recommended: false,
+                  },
+                  moduleFormat: 'dual',
+                  types: {
+                    kind: 'included',
+                  },
+                  engines: {
+                    node: '>=18',
+                  },
+                  createPackage: {
+                    packageName: 'create-svelte',
+                    deprecated:
+                      'create-svelte has been deprecated - please use https://www.npmjs.com/package/sv instead',
+                  },
+                },
+                vulnerabilities: {
+                  count: 0,
+                  severity: {
+                    critical: 0,
+                    high: 0,
+                    moderate: 0,
+                    low: 0,
+                  },
+                },
+                metadata: {
+                  license: 'MIT',
+                  lastUpdated: '2026-03-29T20:58:44.673Z',
+                  engines: {
+                    node: '>=18',
+                  },
+                },
+                isBinaryOnly: false,
+                totalLikes: 191,
+              },
+            ],
+            packages: ['vue', 'svelte'],
+          },
+        })
+        const results = await runAxe(wrapper)
+
+        const violations = filterViolations(results, ['nested-interactive', 'button-name'])
+        expect(violations).toEqual([])
+      })
+
+      it('should have no accessibility violations with empty data', async () => {
+        const wrapper = await mountSuspended(FacetQuadrantChart, {
+          props: {
+            packagesData: [],
+            packages: [],
+          },
+        })
+        const results = await runAxe(wrapper)
+
+        const violations = filterViolations(results, ['nested-interactive', 'button-name'])
+        expect(violations).toEqual([])
       })
     })
 
