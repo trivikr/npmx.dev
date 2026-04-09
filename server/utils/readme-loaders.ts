@@ -120,7 +120,7 @@ export const resolvePackageReadmeSource = defineCachedFunction(
         readmeFilename &&
         (await fetchReadmeFromJsdelivr(packageName, [readmeFilename], resolvedVersion))
 
-      // if it's unsucessful, fetch all known readme filenames
+      // if it's unsuccessful, fetch all known readme filenames
       if (!jsdelivrReadme) {
         const readmeCandidates = buildReadmeFetchCandidates(readmeFilename)
         jsdelivrReadme = await fetchReadmeFromJsdelivr(
@@ -130,7 +130,7 @@ export const resolvePackageReadmeSource = defineCachedFunction(
         )
       }
 
-      // if we found sometihng, use it
+      // if we found something, use it
       if (jsdelivrReadme) {
         readmeContent = jsdelivrReadme
       }
