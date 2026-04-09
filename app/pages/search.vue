@@ -408,29 +408,69 @@ const exactMatchType = computed<'package' | 'org' | 'user' | null>(() => {
 const suggestionCount = computed(() => validatedSuggestions.value.length)
 const totalSelectableCount = computed(() => suggestionCount.value + resultCount.value)
 
+const resultsContainerRef = useTemplateRef<HTMLElement>('resultsContainerRef')
 const isVisible = (el: HTMLElement) => el.getClientRects().length > 0
+const focusableElements = shallowRef<HTMLElement[]>([])
+let focusableElementsObserver: MutationObserver | null = null
+let refreshFocusableElementsFrame: number | null = null
 
 /**
- * Get all focusable result elements in DOM order (suggestions first, then packages)
+ * Cache all keyboard-focusable result elements in DOM order.
+ * DOM order already matches our navigation order: suggestions first, then packages.
  */
-function getFocusableElements(): HTMLElement[] {
-  const suggestions = Array.from(document.querySelectorAll<HTMLElement>('[data-suggestion-index]'))
-    .filter(isVisible)
-    .sort((a, b) => {
-      const aIdx = Number.parseInt(a.dataset.suggestionIndex ?? '0', 10)
-      const bIdx = Number.parseInt(b.dataset.suggestionIndex ?? '0', 10)
-      return aIdx - bIdx
-    })
+function refreshFocusableElements() {
+  const root = resultsContainerRef.value
+  if (!root) {
+    focusableElements.value = []
+    return
+  }
 
-  const packages = Array.from(document.querySelectorAll<HTMLElement>('[data-result-index]'))
-    .filter(isVisible)
-    .sort((a, b) => {
-      const aIdx = Number.parseInt(a.dataset.resultIndex ?? '0', 10)
-      const bIdx = Number.parseInt(b.dataset.resultIndex ?? '0', 10)
-      return aIdx - bIdx
-    })
+  focusableElements.value = Array.from(
+    root.querySelectorAll<HTMLElement>('[data-suggestion-index], [data-result-index]'),
+  ).filter(isVisible)
+}
 
-  return [...suggestions, ...packages]
+function scheduleFocusableElementsRefresh() {
+  if (!import.meta.client) return
+  if (refreshFocusableElementsFrame != null) return
+
+  refreshFocusableElementsFrame = window.requestAnimationFrame(() => {
+    refreshFocusableElementsFrame = null
+    refreshFocusableElements()
+  })
+}
+
+function stopObservingFocusableElements() {
+  focusableElementsObserver?.disconnect()
+  focusableElementsObserver = null
+  if (refreshFocusableElementsFrame != null) {
+    window.cancelAnimationFrame(refreshFocusableElementsFrame)
+    refreshFocusableElementsFrame = null
+  }
+  focusableElements.value = []
+}
+
+function startObservingFocusableElements() {
+  stopObservingFocusableElements()
+
+  const root = resultsContainerRef.value
+  if (!root || !import.meta.client) return
+
+  focusableElementsObserver = new MutationObserver(() => {
+    scheduleFocusableElementsRefresh()
+  })
+
+  focusableElementsObserver.observe(root, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['class', 'style', 'hidden', 'aria-hidden'],
+  })
+
+  // Perform an initial synchronous refresh so focusableElements is populated
+  // before any immediate key handling (ArrowUp/ArrowDown) occurs.
+  refreshFocusableElements()
+  scheduleFocusableElementsRefresh()
 }
 
 /**
@@ -472,6 +512,29 @@ watch(displayResults, newResults => {
   }
 })
 
+watch(resultsContainerRef, () => {
+  startObservingFocusableElements()
+})
+
+watch(
+  [
+    suggestionCount,
+    resultCount,
+    viewMode,
+    paginationMode,
+    currentPage,
+    showSelectionView,
+    isRateLimited,
+    committedQuery,
+  ],
+  () => {
+    nextTick(() => {
+      scheduleFocusableElementsRefresh()
+    })
+  },
+  { flush: 'post' },
+)
+
 /**
  * Focus the header search input
  */
@@ -511,7 +574,7 @@ function handleResultsKeydown(e: KeyboardEvent) {
 
   if (totalSelectableCount.value <= 0) return
 
-  const elements = getFocusableElements()
+  const elements = focusableElements.value
   if (elements.length === 0) return
 
   const currentIndex = elements.findIndex(el => el === document.activeElement)
@@ -551,6 +614,10 @@ function handleResultsKeydown(e: KeyboardEvent) {
 }
 
 onKeyDown(['ArrowDown', 'ArrowUp', 'Enter'], handleResultsKeydown)
+
+onMounted(() => {
+  startObservingFocusableElements()
+})
 
 useSeoMeta({
   title: () =>
@@ -669,6 +736,11 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  stopObservingFocusableElements()
+  if (refreshFocusableElementsFrame != null) {
+    window.cancelAnimationFrame(refreshFocusableElementsFrame)
+    refreshFocusableElementsFrame = null
+  }
   updateLiveRegionMobile.cancel()
   updateLiveRegionDesktop.cancel()
 })
@@ -701,7 +773,7 @@ onBeforeUnmount(() => {
         :view-mode="viewMode"
       />
 
-      <section v-else-if="committedQuery" class="results-layout">
+      <section v-else-if="committedQuery" ref="resultsContainerRef" class="results-layout">
         <LoadingSpinner v-if="showSearching" :text="$t('search.searching')" />
 
         <div
