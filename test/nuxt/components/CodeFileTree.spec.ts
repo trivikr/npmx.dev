@@ -59,7 +59,7 @@ async function mountCodeFileTree() {
 }
 
 describe('CodeFileTree', () => {
-  it('keeps a collapsed sibling directory closed when another sibling expands', async () => {
+  it('expands and collapses a directory when clicked', async () => {
     const wrapper = await mountCodeFileTree()
 
     await vi.waitFor(() => {
@@ -73,6 +73,7 @@ describe('CodeFileTree', () => {
 
     await vi.waitFor(() => {
       expect(wrapper.text()).not.toContain('constants.d.ts')
+      expect(wrapper.text()).not.toContain('common.d.ts')
     })
 
     const typesButton = findDirButton(wrapper, 'types')
