@@ -61,30 +61,31 @@ async function mountCodeFileTree() {
 describe('CodeFileTree', () => {
   it('expands and collapses a directory when clicked', async () => {
     const wrapper = await mountCodeFileTree()
+    try {
+      await vi.waitFor(() => {
+        expect(wrapper.text()).toContain('constants.d.ts')
+        expect(wrapper.text()).not.toContain('common.d.ts')
+      })
 
-    await vi.waitFor(() => {
-      expect(wrapper.text()).toContain('constants.d.ts')
-      expect(wrapper.text()).not.toContain('common.d.ts')
-    })
+      const coreButton = findDirButton(wrapper, 'core')
+      expect(coreButton).toBeDefined()
+      await coreButton!.trigger('click')
 
-    const coreButton = findDirButton(wrapper, 'core')
-    expect(coreButton).toBeDefined()
-    await coreButton!.trigger('click')
+      await vi.waitFor(() => {
+        expect(wrapper.text()).not.toContain('constants.d.ts')
+        expect(wrapper.text()).not.toContain('common.d.ts')
+      })
 
-    await vi.waitFor(() => {
-      expect(wrapper.text()).not.toContain('constants.d.ts')
-      expect(wrapper.text()).not.toContain('common.d.ts')
-    })
+      const typesButton = findDirButton(wrapper, 'types')
+      expect(typesButton).toBeDefined()
+      await typesButton!.trigger('click')
 
-    const typesButton = findDirButton(wrapper, 'types')
-    expect(typesButton).toBeDefined()
-    await typesButton!.trigger('click')
-
-    await vi.waitFor(() => {
-      expect(wrapper.text()).toContain('common.d.ts')
-      expect(wrapper.text()).not.toContain('constants.d.ts')
-    })
-
-    wrapper.unmount()
+      await vi.waitFor(() => {
+        expect(wrapper.text()).toContain('common.d.ts')
+        expect(wrapper.text()).not.toContain('constants.d.ts')
+      })
+    } finally {
+      wrapper.unmount()
+    }
   })
 })
