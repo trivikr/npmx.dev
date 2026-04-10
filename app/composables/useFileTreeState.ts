@@ -7,7 +7,6 @@ export function useFileTreeState(baseUrl: string) {
     } else {
       expanded.value.add(path)
     }
-    expanded.value = new Set(expanded.value)
   }
 
   function isExpanded(path: string) {
@@ -22,7 +21,6 @@ export function useFileTreeState(baseUrl: string) {
       prefix = prefix ? `${prefix}/${part}` : part
       expanded.value.add(prefix)
     }
-    expanded.value = new Set(expanded.value)
   }
 
   return {
