@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue'
 import type { Theme as VueDataUiTheme, VueUiXyConfig, VueUiXyDatasetItem } from 'vue-data-ui'
-import { VueUiXy } from 'vue-data-ui/vue-ui-xy'
 import { useDebounceFn, useElementSize, useTimeoutFn } from '@vueuse/core'
 import { useCssVariables } from '~/composables/useColors'
 import { OKLCH_NEUTRAL_FALLBACK, transparentizeOklch, lightenOklch } from '~/utils/colors'
 import { getFrameworkColor, isListedFramework } from '~/utils/frameworks'
 import { drawNpmxLogoAndTaglineWatermark } from '~/composables/useChartWatermark'
+import { ensureVueDataUiStyle } from '~/utils/vue-data-ui'
 import type { RepoRef } from '#shared/utils/git-providers'
 import type {
   ChartTimeGranularity,
@@ -26,7 +27,11 @@ import {
 import { applyBlocklistCorrection, getAnomaliesForPackages } from '~/utils/download-anomalies'
 import { copyAltTextForTrendLineChart, sanitise, loadFile, applyEllipsis } from '~/utils/charts'
 
-import('vue-data-ui/style.css')
+const VueUiXy = defineAsyncComponent(async () => {
+  await ensureVueDataUiStyle()
+  const module = await import('vue-data-ui/vue-ui-xy')
+  return module.VueUiXy
+})
 
 const props = withDefaults(
   defineProps<{

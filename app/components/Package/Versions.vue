@@ -1132,7 +1132,7 @@ function majorGroupContainsCurrent(group: (typeof otherMajorGroups.value)[0]): b
     <!-- The Chart is mounted after the dialog has transitioned -->
     <!-- This avoids flaky behavior and ensures proper modal lifecycle -->
     <Transition name="opacity" mode="out-in">
-      <PackageVersionDistribution
+      <LazyPackageVersionDistribution
         v-if="hasDistributionModalTransitioned"
         :package-name="packageName"
         :in-modal="true"

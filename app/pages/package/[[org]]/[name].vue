@@ -949,7 +949,7 @@ const showSkeleton = shallowRef(false)
             </ClientOnly>
 
             <!-- Download stats -->
-            <PackageWeeklyDownloadStats
+            <LazyPackageWeeklyDownloadStats
               :packageName
               :createdIso="pkg?.time?.created ?? null"
               :repoRef="repoRef"

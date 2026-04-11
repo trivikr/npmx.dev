@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { VueUiXy } from 'vue-data-ui/vue-ui-xy'
+import { defineAsyncComponent } from 'vue'
 import { type VueUiXyDatasetItem, type VueUiXyConfig } from 'vue-data-ui'
 import { useElementSize } from '@vueuse/core'
 import { useCssVariables } from '~/composables/useColors'
@@ -10,8 +10,13 @@ import {
 } from '~/composables/useChartWatermark'
 import TooltipApp from '~/components/Tooltip/App.vue'
 import { copyAltTextForVersionsBarChart, sanitise, loadFile, applyEllipsis } from '~/utils/charts'
+import { ensureVueDataUiStyle } from '~/utils/vue-data-ui'
 
-import('vue-data-ui/style.css')
+const VueUiXy = defineAsyncComponent(async () => {
+  await ensureVueDataUiStyle()
+  const module = await import('vue-data-ui/vue-ui-xy')
+  return module.VueUiXy
+})
 
 const props = defineProps<{
   packageName: string

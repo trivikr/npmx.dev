@@ -1,15 +1,14 @@
 <script setup lang="ts">
-import { VueUiSparkline } from 'vue-data-ui/vue-ui-sparkline'
+import { defineAsyncComponent } from 'vue'
 import { useCssVariables } from '~/composables/useColors'
 import type { WeeklyDataPoint } from '~/types/chart'
 import { applyDataCorrection } from '~/utils/chart-data-correction'
 import { OKLCH_NEUTRAL_FALLBACK, lightenOklch } from '~/utils/colors'
 import { applyBlocklistCorrection } from '~/utils/download-anomalies'
+import { ensureVueDataUiStyle } from '~/utils/vue-data-ui'
 import type { RepoRef } from '#shared/utils/git-providers'
 import type { VueUiSparklineConfig, VueUiSparklineDatasetItem } from 'vue-data-ui'
-import { onKeyDown } from '@vueuse/core'
-
-import('vue-data-ui/style.css')
+import { onKeyDown, useIntersectionObserver } from '@vueuse/core'
 
 const props = defineProps<{
   packageName: string
@@ -20,9 +19,21 @@ const props = defineProps<{
 const router = useRouter()
 const route = useRoute()
 const { settings } = useSettings()
+const downloadsSection = useTemplateRef<HTMLElement>('downloadsSection')
 
 const chartModal = useModal('chart-modal')
 const hasChartModalTransitioned = shallowRef(false)
+const hasDownloadsSectionBeenVisible = shallowRef(false)
+const hasRequestedWeeklyDownloads = shallowRef(false)
+const lastLoadedPackageKey = shallowRef<string | null>(null)
+let pendingWeeklyDownloadsPromise: Promise<void> | null = null
+let weeklyDownloadsRequestVersion = 0
+
+const VueUiSparkline = defineAsyncComponent(async () => {
+  await ensureVueDataUiStyle()
+  const module = await import('vue-data-ui/vue-ui-sparkline')
+  return module.VueUiSparkline
+})
 
 const modalTitle = computed(() => {
   const facet = route.query.facet as string | undefined
@@ -69,9 +80,34 @@ const resolvedMode = shallowRef<'light' | 'dark'>('light')
 
 const rootEl = shallowRef<HTMLElement | null>(null)
 
+function markDownloadsSectionVisibleIfInViewport() {
+  const section = downloadsSection.value
+  if (!section || hasDownloadsSectionBeenVisible.value) return
+
+  const rect = section.getBoundingClientRect()
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+
+  if (rect.top <= viewportHeight + 240 && rect.bottom >= -240) {
+    hasDownloadsSectionBeenVisible.value = true
+  }
+}
+
 onMounted(() => {
   rootEl.value = document.documentElement
   resolvedMode.value = colorMode.value === 'dark' ? 'dark' : 'light'
+
+  if (!('IntersectionObserver' in window)) {
+    hasDownloadsSectionBeenVisible.value = true
+    return
+  }
+
+  markDownloadsSectionVisibleIfInViewport()
+
+  if (!hasDownloadsSectionBeenVisible.value) {
+    void nextTick(() => {
+      markDownloadsSectionVisibleIfInViewport()
+    })
+  }
 })
 
 watch(
@@ -125,61 +161,129 @@ const pulseColor = computed(() => {
 })
 
 const weeklyDownloads = shallowRef<WeeklyDataPoint[]>([])
-const isLoadingWeeklyDownloads = shallowRef(true)
+const isLoadingWeeklyDownloads = shallowRef(false)
 const hasWeeklyDownloads = computed(() => weeklyDownloads.value.length > 0)
 
-async function openChartModal() {
+const weeklyDownloadsRequestKey = computed(() => `${props.packageName}:${props.createdIso ?? ''}`)
+const shouldLoadWeeklyDownloads = computed(
+  () => hasDownloadsSectionBeenVisible.value || route.query.modal === 'chart',
+)
+
+async function requestChartModalOpen() {
+  await ensureWeeklyDownloadsLoaded()
   if (!hasWeeklyDownloads.value) return
-
-  isChartModalOpen.value = true
-  hasChartModalTransitioned.value = false
-
   await router.replace({
     query: {
       ...route.query,
       modal: 'chart',
     },
   })
-
-  // ensure the component renders before opening the dialog
-  await nextTick()
-  await nextTick()
-  chartModal.open()
 }
 
 async function loadWeeklyDownloads() {
   if (!import.meta.client) return
+  const requestKey = weeklyDownloadsRequestKey.value
 
-  isLoadingWeeklyDownloads.value = true
-  try {
-    const result = await fetchPackageDownloadEvolution(
-      () => props.packageName,
-      () => props.createdIso,
-      () => ({ granularity: 'week' as const, weeks: 52 }),
-    )
-    weeklyDownloads.value = (result as WeeklyDataPoint[]) ?? []
-  } catch {
-    weeklyDownloads.value = []
-  } finally {
-    isLoadingWeeklyDownloads.value = false
+  if (lastLoadedPackageKey.value === requestKey) return
+  if (pendingWeeklyDownloadsPromise) {
+    await pendingWeeklyDownloadsPromise
+    return
   }
+
+  hasRequestedWeeklyDownloads.value = true
+  const requestVersion = ++weeklyDownloadsRequestVersion
+  pendingWeeklyDownloadsPromise = (async () => {
+    isLoadingWeeklyDownloads.value = true
+
+    try {
+      const result = await fetchPackageDownloadEvolution(
+        () => props.packageName,
+        () => props.createdIso,
+        () => ({ granularity: 'week' as const, weeks: 52 }),
+      )
+      if (requestVersion !== weeklyDownloadsRequestVersion) return
+      weeklyDownloads.value = (result as WeeklyDataPoint[]) ?? []
+      lastLoadedPackageKey.value = requestKey
+    } catch {
+      if (requestVersion !== weeklyDownloadsRequestVersion) return
+      weeklyDownloads.value = []
+      lastLoadedPackageKey.value = requestKey
+    } finally {
+      if (requestVersion === weeklyDownloadsRequestVersion) {
+        isLoadingWeeklyDownloads.value = false
+        pendingWeeklyDownloadsPromise = null
+      }
+    }
+  })()
+
+  await pendingWeeklyDownloadsPromise
 }
 
-onMounted(async () => {
+async function ensureWeeklyDownloadsLoaded() {
+  if (!shouldLoadWeeklyDownloads.value) return
   await loadWeeklyDownloads()
-
-  if (route.query.modal === 'chart') {
-    isChartModalOpen.value = true
-  }
-
-  if (isChartModalOpen.value && hasWeeklyDownloads.value) {
-    openChartModal()
-  }
-})
+}
 
 watch(
-  () => props.packageName,
-  () => loadWeeklyDownloads(),
+  () => weeklyDownloadsRequestKey.value,
+  () => {
+    weeklyDownloadsRequestVersion += 1
+    weeklyDownloads.value = []
+    isLoadingWeeklyDownloads.value = false
+    hasRequestedWeeklyDownloads.value = false
+    lastLoadedPackageKey.value = null
+    pendingWeeklyDownloadsPromise = null
+
+    if (shouldLoadWeeklyDownloads.value) {
+      void ensureWeeklyDownloadsLoaded()
+    }
+  },
+)
+
+watch(
+  shouldLoadWeeklyDownloads,
+  value => {
+    if (value) {
+      void ensureWeeklyDownloadsLoaded()
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => route.query.modal,
+  async modal => {
+    if (!import.meta.client) return
+    if (modal !== 'chart') {
+      isChartModalOpen.value = false
+      hasChartModalTransitioned.value = false
+      return
+    }
+
+    isChartModalOpen.value = true
+    hasChartModalTransitioned.value = false
+
+    await ensureWeeklyDownloadsLoaded()
+    if (!hasWeeklyDownloads.value) return
+
+    // ensure the component renders before opening the dialog
+    await nextTick()
+    await nextTick()
+    chartModal.open()
+  },
+  { immediate: true },
+)
+
+useIntersectionObserver(
+  downloadsSection,
+  entries => {
+    if (entries.some(entry => entry.isIntersecting)) {
+      hasDownloadsSectionBeenVisible.value = true
+    }
+  },
+  {
+    rootMargin: '240px 0px',
+  },
 )
 
 const correctedDownloads = computed<WeeklyDataPoint[]>(() => {
@@ -402,68 +506,89 @@ const config = computed<VueUiSparklineConfig>(() => {
 
 <template>
   <div class="space-y-8">
-    <CollapsibleSection
-      id="downloads"
-      :title="$t('package.downloads.title')"
-      :subtitle="$t('package.downloads.subtitle')"
-    >
-      <template #actions>
-        <ButtonBase
-          v-if="hasWeeklyDownloads"
-          type="button"
-          @click="openChartModal"
-          class="text-fg-subtle hover:text-fg transition-colors duration-200 inline-flex items-center justify-center min-w-6 min-h-6 -m-1 p-1 focus-visible:outline-accent/70 rounded"
-          :title="$t('package.trends.title')"
-          classicon="i-lucide:chart-line"
-        >
-          <span class="sr-only">{{ $t('package.trends.title') }}</span>
-        </ButtonBase>
-        <span v-else-if="isLoadingWeeklyDownloads" class="min-w-6 min-h-6 -m-1 p-1" />
-      </template>
+    <div ref="downloadsSection">
+      <CollapsibleSection
+        id="downloads"
+        :title="$t('package.downloads.title')"
+        :subtitle="$t('package.downloads.subtitle')"
+      >
+        <template #actions>
+          <ButtonBase
+            v-if="hasWeeklyDownloads"
+            type="button"
+            @click="requestChartModalOpen"
+            class="text-fg-subtle hover:text-fg transition-colors duration-200 inline-flex items-center justify-center min-w-6 min-h-6 -m-1 p-1 focus-visible:outline-accent/70 rounded"
+            :title="$t('package.trends.title')"
+            classicon="i-lucide:chart-line"
+          >
+            <span class="sr-only">{{ $t('package.trends.title') }}</span>
+          </ButtonBase>
+          <span v-else-if="isLoadingWeeklyDownloads" class="min-w-6 min-h-6 -m-1 p-1" />
+        </template>
 
-      <div class="w-full h-[76px] egg-pulse-target" :class="{ 'egg-pulse': eggPulse }">
-        <template v-if="isLoadingWeeklyDownloads || hasWeeklyDownloads">
-          <ClientOnly>
-            <VueUiSparkline class="w-full max-w-xs" :dataset :config>
-              <!-- Keyboard navigation hint -->
-              <template #hint="{ isVisible }">
-                <p v-if="isVisible" class="text-accent text-xs text-center mt-2" aria-hidden="true">
-                  {{ $t('package.downloads.sparkline_nav_hint') }}
-                </p>
-              </template>
-
-              <template #skeleton>
-                <!-- This empty div overrides the default built-in scanning animation on load -->
-                <div />
-              </template>
-            </VueUiSparkline>
-            <template #fallback>
-              <!-- Skeleton matching VueUiSparkline layout (title 24px + SVG aspect 500:80) -->
-              <div class="max-w-xs">
-                <!-- Title row: fontSize * 2 = 24px -->
-                <div class="h-6 flex items-center ps-3">
-                  <SkeletonInline class="h-3 w-36" />
+        <div class="w-full h-[76px] egg-pulse-target" :class="{ 'egg-pulse': eggPulse }">
+          <template v-if="!hasRequestedWeeklyDownloads">
+            <div class="max-w-xs">
+              <div class="h-6 flex items-center ps-3">
+                <SkeletonInline class="h-3 w-36" />
+              </div>
+              <div class="aspect-[500/80] flex items-center">
+                <div class="w-[42%] flex items-center ps-0.5">
+                  <SkeletonInline class="h-7 w-24" />
                 </div>
-                <!-- Chart area: matches SVG viewBox 500:80 -->
-                <div class="aspect-[500/80] flex items-center">
-                  <!-- Data label (covers ~42% width, matching dataLabel.offsetX) -->
-                  <div class="w-[42%] flex items-center ps-0.5">
-                    <SkeletonInline class="h-7 w-24" />
-                  </div>
-                  <!-- Sparkline line placeholder -->
-                  <div class="flex-1 flex items-end pe-3">
-                    <SkeletonInline class="h-px w-full" />
-                  </div>
+                <div class="flex-1 flex items-end pe-3">
+                  <SkeletonInline class="h-px w-full" />
                 </div>
               </div>
-            </template>
-          </ClientOnly>
-        </template>
-        <p v-else class="py-2 text-sm font-mono text-fg-subtle">
-          {{ $t('package.trends.no_data') }}
-        </p>
-      </div>
-    </CollapsibleSection>
+            </div>
+          </template>
+          <template v-else-if="isLoadingWeeklyDownloads || hasWeeklyDownloads">
+            <ClientOnly>
+              <VueUiSparkline class="w-full max-w-xs" :dataset :config>
+                <!-- Keyboard navigation hint -->
+                <template #hint="{ isVisible }">
+                  <p
+                    v-if="isVisible"
+                    class="text-accent text-xs text-center mt-2"
+                    aria-hidden="true"
+                  >
+                    {{ $t('package.downloads.sparkline_nav_hint') }}
+                  </p>
+                </template>
+
+                <template #skeleton>
+                  <!-- This empty div overrides the default built-in scanning animation on load -->
+                  <div />
+                </template>
+              </VueUiSparkline>
+              <template #fallback>
+                <!-- Skeleton matching VueUiSparkline layout (title 24px + SVG aspect 500:80) -->
+                <div class="max-w-xs">
+                  <!-- Title row: fontSize * 2 = 24px -->
+                  <div class="h-6 flex items-center ps-3">
+                    <SkeletonInline class="h-3 w-36" />
+                  </div>
+                  <!-- Chart area: matches SVG viewBox 500:80 -->
+                  <div class="aspect-[500/80] flex items-center">
+                    <!-- Data label (covers ~42% width, matching dataLabel.offsetX) -->
+                    <div class="w-[42%] flex items-center ps-0.5">
+                      <SkeletonInline class="h-7 w-24" />
+                    </div>
+                    <!-- Sparkline line placeholder -->
+                    <div class="flex-1 flex items-end pe-3">
+                      <SkeletonInline class="h-px w-full" />
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </ClientOnly>
+          </template>
+          <p v-else class="py-2 text-sm font-mono text-fg-subtle">
+            {{ $t('package.trends.no_data') }}
+          </p>
+        </div>
+      </CollapsibleSection>
+    </div>
   </div>
 
   <PackageChartModal
@@ -476,7 +601,7 @@ const config = computed<VueUiSparklineConfig>(() => {
     <!-- The Chart is mounted after the dialog has transitioned -->
     <!-- This avoids flaky behavior that hides the chart's minimap half of the time -->
     <Transition name="opacity" mode="out-in">
-      <PackageTrendsChart
+      <LazyPackageTrendsChart
         v-if="hasChartModalTransitioned"
         :weeklyDownloads="weeklyDownloads"
         :inModal="true"
