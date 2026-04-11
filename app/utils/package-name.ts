@@ -79,6 +79,30 @@ export interface CheckNameResult {
   similarPackages?: SimilarPackage[]
 }
 
+function getFetchStatusCode(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') return undefined
+
+  if ('statusCode' in error && typeof error.statusCode === 'number') {
+    return error.statusCode
+  }
+
+  if ('status' in error && typeof error.status === 'number') {
+    return error.status
+  }
+
+  if (
+    'response' in error &&
+    error.response &&
+    typeof error.response === 'object' &&
+    'status' in error.response &&
+    typeof error.response.status === 'number'
+  ) {
+    return error.response.status
+  }
+
+  return undefined
+}
+
 export async function checkPackageExists(
   name: string,
   options: Parameters<typeof $fetch>[1] = {},
@@ -89,8 +113,12 @@ export async function checkPackageExists(
       method: 'HEAD',
     })
     return true
-  } catch {
-    return false
+  } catch (error) {
+    if (getFetchStatusCode(error) === 404) {
+      return false
+    }
+
+    throw error
   }
 }
 

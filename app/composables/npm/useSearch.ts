@@ -129,7 +129,7 @@ export function useSearch(
     const trimmed = q.trim()
     if (result.packageExists !== null && isValidNewPackageName(trimmed)) {
       packageAvailability.value = { name: trimmed, available: !result.packageExists }
-    } else if (!isValidNewPackageName(trimmed)) {
+    } else {
       packageAvailability.value = null
     }
 
@@ -340,6 +340,7 @@ export function useSearch(
 
     const trimmed = q.trim()
     if (isValidNewPackageName(trimmed)) {
+      packageAvailability.value = null
       promises.push(
         checkPackageExists(trimmed)
           .then(exists => {
@@ -349,11 +350,15 @@ export function useSearch(
             }
           })
           .catch(() => {
-            availability = null
+            if (trimmed === toValue(query).trim()) {
+              availability = null
+              packageAvailability.value = null
+            }
           }),
       )
     } else {
       availability = null
+      packageAvailability.value = null
     }
 
     if (!intent || !name) {
@@ -453,9 +458,7 @@ export function useSearch(
       () => npmSuggestions.data.value.packageAvailability,
     ],
     ([algoliaPackageAvailability, npmPackageAvailability]) => {
-      if (algoliaPackageAvailability || npmPackageAvailability) {
-        packageAvailability.value = algoliaPackageAvailability || npmPackageAvailability
-      }
+      packageAvailability.value = algoliaPackageAvailability ?? npmPackageAvailability ?? null
     },
     { immediate: true },
   )

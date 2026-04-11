@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { checkPackageExists, findSimilarPackages, normalizePackageName } from '~/utils/package-name'
+import {
+  checkPackageExists,
+  checkPackageName,
+  findSimilarPackages,
+  normalizePackageName,
+} from '~/utils/package-name'
 
 describe('normalizePackageName', () => {
   it.each([
@@ -43,11 +48,17 @@ describe('checkPackageExists', () => {
   })
 
   it('returns false when package does not exist', async () => {
-    fetchMock.mockRejectedValue(new Error('404'))
+    fetchMock.mockRejectedValue({ statusCode: 404 })
 
     const result = await checkPackageExists('nonexistent-package')
 
     expect(result).toBe(false)
+  })
+
+  it('throws when package existence cannot be determined', async () => {
+    fetchMock.mockRejectedValue(new Error('Network error'))
+
+    await expect(checkPackageExists('some-package')).rejects.toThrow('Network error')
   })
 
   it('encodes regular package names', async () => {
@@ -68,6 +79,38 @@ describe('checkPackageExists', () => {
     expect(fetchMock).toHaveBeenCalledWith('https://registry.npmjs.org/@vue%2Fcore', {
       method: 'HEAD',
     })
+  })
+})
+
+describe('checkPackageName', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchMock = vi.fn()
+    vi.stubGlobal('$fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('marks a missing package as available', async () => {
+    fetchMock.mockRejectedValueOnce({ statusCode: 404 }).mockResolvedValueOnce({ objects: [] })
+
+    const result = await checkPackageName('available-package')
+
+    expect(result).toMatchObject({
+      name: 'available-package',
+      valid: true,
+      available: true,
+      similarPackages: [],
+    })
+  })
+
+  it('rejects when package availability cannot be determined', async () => {
+    fetchMock.mockRejectedValue(new Error('Network error'))
+
+    await expect(checkPackageName('available-package')).rejects.toThrow('Network error')
   })
 })
 
