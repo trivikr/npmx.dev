@@ -470,7 +470,6 @@ function startObservingFocusableElements() {
   // Perform an initial synchronous refresh so focusableElements is populated
   // before any immediate key handling (ArrowUp/ArrowDown) occurs.
   refreshFocusableElements()
-  scheduleFocusableElementsRefresh()
 }
 
 /**
