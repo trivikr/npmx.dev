@@ -740,10 +740,6 @@ watch(
 
 onBeforeUnmount(() => {
   stopObservingFocusableElements()
-  if (refreshFocusableElementsFrame != null) {
-    window.cancelAnimationFrame(refreshFocusableElementsFrame)
-    refreshFocusableElementsFrame = null
-  }
   updateLiveRegionMobile.cancel()
   updateLiveRegionDesktop.cancel()
 })
