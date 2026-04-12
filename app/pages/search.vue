@@ -529,6 +529,9 @@ watch(
   ],
   () => {
     nextTick(() => {
+      if (!resultsContainerRef.value) {
+        return
+      }
       scheduleFocusableElementsRefresh()
     })
   },
