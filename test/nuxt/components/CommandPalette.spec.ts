@@ -188,25 +188,14 @@ describe('CommandPalette', () => {
     expect(announcer?.textContent).toBe('Relative dates on.')
   })
 
-  it('toggles with the global keyboard shortcut only when shortcuts are enabled', async () => {
-    const { settings } = useSettings()
+  it('opens on mount when the palette state is already open', async () => {
+    commandPalette = useCommandPalette()
+    commandPalette.open()
+
     await mountPalette({ autoOpen: false })
 
-    document.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, ctrlKey: true, key: 'k' }))
-    await flushPalette()
-
-    expect(commandPalette?.isOpen.value).toBe(true)
-
-    document.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, ctrlKey: true, key: 'k' }))
-    await flushPalette()
-
-    expect(commandPalette?.isOpen.value).toBe(false)
-
-    settings.value.keyboardShortcuts = false
-    document.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, ctrlKey: true, key: 'k' }))
-    await flushPalette()
-
-    expect(commandPalette?.isOpen.value).toBe(false)
+    expect(document.getElementById('command-palette-modal-input')).not.toBeNull()
+    expect(commandPalette.isOpen.value).toBe(true)
   })
 
   it('moves focus through commands with the arrow keys', async () => {

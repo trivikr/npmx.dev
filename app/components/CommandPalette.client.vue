@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CommandPaletteCommand, CommandPaletteLinkCommand } from '~/types/command-palette'
 
-const { announcement, isOpen, query, close, toggle, setView, view } = useCommandPalette()
+const { announcement, isOpen, query, close, setView, view } = useCommandPalette()
 const {
   groupedCommands,
   flatCommands,
@@ -11,7 +11,6 @@ const {
   trimmedQuery,
   viewMeta,
 } = useCommandPaletteCommands()
-const keyboardShortcuts = useKeyboardShortcuts()
 const route = useRoute()
 
 const modalRef = useTemplateRef<{
@@ -154,22 +153,8 @@ function handleCommandClick(command: CommandPaletteCommand) {
   void handleCommandSelect(command)
 }
 
-function handleGlobalKeydown(event: KeyboardEvent) {
+function handlePaletteKeydown(event: KeyboardEvent) {
   if (event.isComposing) return
-
-  const isToggleShortcut =
-    event.key.toLowerCase() === 'k' &&
-    (event.metaKey || event.ctrlKey) &&
-    !event.altKey &&
-    !event.shiftKey
-
-  if (isToggleShortcut) {
-    if (!keyboardShortcuts.value) return
-
-    event.preventDefault()
-    toggle()
-    return
-  }
 
   if (!isOpen.value) return
 
@@ -263,7 +248,7 @@ watch(
     previouslyFocused.value?.focus()
     previouslyFocused.value = null
   },
-  { flush: 'post' },
+  { flush: 'post', immediate: true },
 )
 
 watch(
@@ -275,7 +260,7 @@ watch(
   },
 )
 
-useEventListener(document, 'keydown', handleGlobalKeydown)
+useEventListener(document, 'keydown', handlePaletteKeydown)
 </script>
 
 <template>

@@ -65,13 +65,14 @@ async function captureCommandPalette(options?: {
 
   const WrapperComponent = defineComponent({
     setup() {
-      const { query, setPackageContext, clearPackageContext, setView } = useCommandPalette()
+      const { open, query, setPackageContext, clearPackageContext, setView } = useCommandPalette()
       const colorMode = useColorMode()
       const route = useRoute()
 
       colorMode.preference = options?.colorMode ?? 'system'
       setView(options?.view ?? 'root')
       query.value = options?.query ?? ''
+      open()
 
       if (options?.packageContext) {
         setPackageContext(options.packageContext)

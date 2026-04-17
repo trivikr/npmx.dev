@@ -24,6 +24,7 @@ export function useCommandPaletteCommands() {
   const { t } = useI18n()
   const {
     close,
+    isOpen,
     packageContext,
     query,
     view,
@@ -152,19 +153,55 @@ export function useCommandPaletteCommands() {
     )
   })
 
-  const { results } = useFuse(trimmedQuery, commands, {
-    fuseOptions: {
-      keys: ['label', 'keywords'],
-      threshold: 0.3,
-      ignoreLocation: true,
-      ignoreDiacritics: true,
+  const fuseResults = shallowRef<Array<{ item: CommandPaletteCommand }>>([])
+  let stopFuseScope: (() => void) | null = null
+
+  watch(
+    isOpen,
+    open => {
+      stopFuseScope?.()
+      stopFuseScope = null
+
+      if (!open) {
+        fuseResults.value = commands.value.map(command => ({ item: command }))
+        return
+      }
+
+      const scope = effectScope()
+      stopFuseScope = () => {
+        scope.stop()
+      }
+
+      scope.run(() => {
+        const { results } = useFuse(trimmedQuery, commands, {
+          fuseOptions: {
+            keys: ['label', 'keywords'],
+            threshold: 0.3,
+            ignoreLocation: true,
+            ignoreDiacritics: true,
+          },
+          matchAllWhenSearchEmpty: true,
+        })
+
+        watch(
+          results,
+          value => {
+            fuseResults.value = value.map(result => ({ item: result.item }))
+          },
+          { immediate: true },
+        )
+      })
     },
-    matchAllWhenSearchEmpty: true,
+    { immediate: true },
+  )
+
+  onScopeDispose(() => {
+    stopFuseScope?.()
   })
 
   const matchedCommands = computed(() => {
     const availableGroups = new Set(commands.value.map(command => command.group))
-    let nextCommands = results.value.map(result => result.item)
+    let nextCommands = fuseResults.value.map(result => result.item)
 
     queryOverrides.value.forEach(({ scopeId, group }) => {
       if (!availableGroups.has(group)) return
